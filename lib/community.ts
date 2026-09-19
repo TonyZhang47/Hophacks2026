@@ -117,11 +117,18 @@ export async function officialAdverseReactions(rxcui: string, ingredient: string
 const summaryCache = new TtlCache<string>(6 * 60 * 60 * 1000);
 
 const SUMMARIZE_SYSTEM = `You summarize FDA adverse-reactions label text for a reader with no medical training.
-Write 4 to 8 short sentences in the requested language.
+Write in the requested language using clear, everyday words and a respectful, formal tone. Be easy to understand without sounding casual, childish, or overly technical.
+Write 4 to 8 short sentences, with one main idea per sentence. Keep each sentence to at most 25 words and list no more than 4 effects in a sentence. Split longer lists across sentences. Use fewer sentences only if there is too little information to summarize without repetition; do not add filler.
+Use plain descriptions instead of medical jargon, abbreviations, or clinical phrasing. For example, say "side effects" instead of "adverse reactions" and "sleepiness" instead of "somnolence". If a medical term is essential, explain it immediately in everyday words.
+For English, aim for a sixth-grade reading level while keeping a professional tone. Avoid slang, idioms, and long or complicated sentences. Prefer standard words such as "stomach" and "intestines" over casual words such as "belly" and "gut" when referring to those body parts.
+For Spanish, use natural, neutral Latin American Spanish with the same simple, formal style. Say "efectos secundarios" instead of "reacciones adversas", "sueño" instead of "somnolencia", and "acumulación de líquido" instead of "retención de líquidos". Avoid literal translations of English phrasing, regional slang, and unexplained medical terms. If addressing the reader directly, use "usted", not "tú".
 Only use facts that appear in the label text. Do not invent side effects, frequencies, or advice.
+Do not infer causes, timing (such as "after eating"), additional symptoms, or severity details that the source does not state.
+Preserve the meaning of any numbers, how often effects occur, how serious they are, and any uncertainty. Do not make serious effects sound mild or imply that a reported effect is a proven result of the medicine.
+The wording examples above are style guidance only; include an effect only if it appears in the supplied label.
 Do not tell the reader to change their dose or stop a medicine.
-If the text is mostly cross-references, name the reactions listed and say the full details are in other label sections.
-Output only the summary. No preamble, bullets unless the label itself is a list of names, or markdown headings.`;
+Only mention other parts of the label when the supplied text explicitly refers to them. If the text is mostly cross-references, describe the listed effects in everyday words and say the full details are in other parts of the label. Do not guess the missing details.
+Output only the summary as a short paragraph. No preamble, bullets, or markdown headings.`;
 
 export class SummarizeError extends Error {
   constructor(

@@ -111,7 +111,7 @@ Rules — follow all of them exactly:
 1. Translate meaning only. Do not add, remove, merge or split sentences. Do not add advice, warnings or explanations.
 2. Placeholders that look like {{0}}, {{1}} ... stand for numbers, units, times and drug names. Copy every placeholder into the translation EXACTLY as written, exactly once, in the natural position. Never translate, reorder digits inside, drop, or duplicate a placeholder.
 3. Never write any digit yourself. Numbers only ever appear via placeholders.
-4. Use plain everyday words a person without medical training understands. Keep it short.
+4. Use plain everyday words a person without medical training understands. Keep it short and preserve the source's tone and level of formality. Do not replace simple descriptions with medical jargon, abbreviations, or complicated wording. For formal Spanish text, use natural, neutral Latin American Spanish and "usted" if addressing the reader directly; avoid casual expressions such as "panza" (use "vientre"). Preserve the meaning of risks and uncertainty.
 5. Input is a JSON array of strings. Output ONLY a JSON array of translated strings, same length, same order. No markdown, no commentary.`;
 
 /**
