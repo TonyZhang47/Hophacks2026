@@ -11,16 +11,10 @@ import { MedSearch } from "@/components/meds/MedSearch";
 import { MedChips } from "@/components/meds/MedChips";
 import { FoodMap } from "@/components/food/FoodMap";
 import { StatRow } from "@/components/meds/StatRow";
-import { SharePanel } from "@/components/meds/SharePanel";
 import { DoseExplainer } from "@/components/dose/DoseExplainer";
 import { MedicationCalendar } from "@/components/meds/MedicationCalendar";
-import { checkFoods, SEVERITY_HELP, type FoodResult } from "@/lib/food";
-import type {
-  DoseInput,
-  DoseResult,
-  InteractionCard,
-  Med,
-} from "@/lib/types";
+import { checkFoods, type FoodResult } from "@/lib/food";
+import type { DoseInput, DoseResult, Med } from "@/lib/types";
 const DEMO: Med[] = [
   { name: "Warfarin", rxcui: "11289", ingredientName: "warfarin" },
   { name: "Simvastatin", rxcui: "36567", ingredientName: "simvastatin" },
@@ -76,21 +70,8 @@ export function MedsWorkspace() {
     ? { major: 0, moderate: 0, minor: 0, unknown: 0 }
     : null;
   if (counts) results.forEach((r) => counts[r.severity]++);
-  const cards: InteractionCard[] = results.map((r) => ({
-    drugA: r.medicine.name,
-    drugB: r.food,
-    severity: r.severity,
-    whatHappens: r.explanation,
-    howSerious: SEVERITY_HELP[lang][r.severity],
-    whatToDo: r.guidance,
-    askYourClinician: es
-      ? "¿Cómo se aplica esto a mis comidas?"
-      : "How does this apply to my meals?",
-    citations: r.source ? [r.source] : [],
-  }));
   return (
     <div className="space-y-8 pb-8">
-      <StatRow counts={counts} medCount={meds.length} maxMeds={10} />
       <div className="grid lg:grid-cols-[0.85fr_1.5fr] gap-6 items-start">
         <Panel id="my-medicines" className="scroll-mt-24">
           <PanelHeader
@@ -172,6 +153,10 @@ export function MedsWorkspace() {
             }
           />
           <FoodMap results={results} onSelect={() => setFilter("all")} />
+          <div className="mt-5 pt-5 border-t border-md-outline">
+            <p className="eyebrow mb-3">{es ? "Clave de niveles" : "Key to the levels"}</p>
+            <StatRow counts={counts} medCount={meds.length} maxMeds={10} compact />
+          </div>
         </Panel>
       </div>
       {checked && (
@@ -266,7 +251,6 @@ export function MedsWorkspace() {
         }
       />
       <MedicationCalendar meds={meds} />
-      <SharePanel data={{ meds, cards, doses, clinic: null }} />
     </div>
   );
 }

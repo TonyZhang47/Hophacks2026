@@ -32,6 +32,8 @@ const T = {
     locating: "Finding you…",
     useLocation: "Use my location",
     filtersLegend: "Only show clinics that…",
+    radius: "Travel radius",
+    milesLabel: (n: number) => `${n} miles`,
     medicaid: "Takes Medicaid",
     medicare: "Takes Medicare",
     slidingFee: "Sliding fee",
@@ -72,6 +74,8 @@ const T = {
     locating: "Buscándole…",
     useLocation: "Usar mi ubicación",
     filtersLegend: "Mostrar solo clínicas que…",
+    radius: "Radio de viaje",
+    milesLabel: (n: number) => `${n} millas`,
     medicaid: "Acepta Medicaid",
     medicare: "Acepta Medicare",
     slidingFee: "Tarifa según ingresos",
@@ -151,6 +155,7 @@ export function ClinicFinder({ className = "", showHeader = true }: { className?
   const [zipError, setZipError] = useState<string | undefined>();
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [filters, setFilters] = useState<Filters>({ medicaid: false, medicare: false, slidingFee: false, rural: false });
+  const [radius, setRadius] = useState(25);
   const [status, setStatus] = useState<"idle" | "locating" | "loading" | "done" | "error">("idle");
   const [message, setMessage] = useState<string>("");
   const [data, setData] = useState<NearResponse | null>(null);
@@ -174,6 +179,7 @@ export function ClinicFinder({ className = "", showHeader = true }: { className?
         params.set("lon", where.lon.toFixed(2));
       }
       for (const f of FILTER_KEYS) if (filters[f.key]) params.set(f.key, "1");
+      params.set("radiusMiles", String(radius));
       try {
         const res = await fetch(`/api/clinics/near?${params.toString()}`);
         const body = (await res.json()) as NearResponse & { error?: string };
@@ -190,7 +196,7 @@ export function ClinicFinder({ className = "", showHeader = true }: { className?
         setMessage(t.unreachable);
       }
     },
-    [filters, t],
+    [filters, radius, t],
   );
 
   const onSubmit = (e: FormEvent) => {
@@ -265,6 +271,31 @@ export function ClinicFinder({ className = "", showHeader = true }: { className?
             <LocateFixed className="h-4 w-4" aria-hidden="true" />
             {status === "locating" ? t.locating : t.useLocation}
           </Button>
+        </div>
+        <div>
+          <div className="flex items-baseline justify-between">
+            <label htmlFor={`${ids}-radius`} className="block text-meta font-medium text-md-on-surface-variant mb-1.5">
+              {t.radius}
+            </label>
+            <output htmlFor={`${ids}-radius`} className="text-meta font-medium text-md-on-background tabular-nums">
+              {t.milesLabel(radius)}
+            </output>
+          </div>
+          <input
+            id={`${ids}-radius`}
+            type="range"
+            min={5}
+            max={100}
+            step={5}
+            value={radius}
+            onChange={(e) => setRadius(Number(e.target.value))}
+            className="w-full accent-md-primary"
+            aria-valuetext={t.milesLabel(radius)}
+          />
+          <div className="flex justify-between text-meta text-md-on-surface-variant">
+            <span>{t.milesLabel(5)}</span>
+            <span>{t.milesLabel(100)}</span>
+          </div>
         </div>
         <fieldset>
           <legend className="sr-only">{t.filtersLegend}</legend>

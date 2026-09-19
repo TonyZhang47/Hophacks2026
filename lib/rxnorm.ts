@@ -43,7 +43,16 @@ export function searchCommon(q: string, limit = MAX_RESULTS): Med[] {
     if (score >= 0) scored.push({ med, score });
   }
   scored.sort((x, y) => x.score - y.score || x.med.name.localeCompare(y.med.name));
-  return scored.slice(0, limit).map((s) => s.med);
+  // One row per ingredient: the best-ranked name wins; brand aliases are shown by the UI anyway.
+  const seen = new Set<string>();
+  const out: Med[] = [];
+  for (const s of scored) {
+    if (seen.has(s.med.rxcui)) continue;
+    seen.add(s.med.rxcui);
+    out.push(s.med);
+    if (out.length >= limit) break;
+  }
+  return out;
 }
 
 /** Lookup by rxcui in the bundled list (generic entry preferred over brand alias). */

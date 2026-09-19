@@ -72,7 +72,7 @@ export function addPlannedDoses(opts: {
   const times = opts.times.map((t) => t.trim()).filter((t) => TIME.test(t));
   if (!medicine || !times.length) return [];
   const start = opts.startDay && /^\d{4}-\d{2}-\d{2}$/.test(opts.startDay) ? opts.startDay : localDay(new Date());
-  const days = Math.min(Math.max(opts.days ?? 1, 1), 7);
+  const days = Math.min(Math.max(opts.days ?? 1, 1), 366);
   const note = (opts.note ?? "").trim().slice(0, 200);
   const existing = loadCalendarEntries();
   const added: CalendarEntry[] = [];

@@ -13,6 +13,8 @@ export interface StatRowProps {
   counts: SeverityCounts | null;
   medCount: number;
   maxMeds: number;
+  /** Severity key only (no medicine-count tile), laid out to sit under the food map. */
+  compact?: boolean;
 }
 
 const ORDER: Severity[] = ["major", "moderate", "minor", "unknown"];
@@ -51,13 +53,13 @@ const STRINGS = {
 };
 
 /** KPI row under the page header: one tile per severity plus the medicine count. */
-export function StatRow({ counts, medCount, maxMeds }: StatRowProps) {
+export function StatRow({ counts, medCount, maxMeds, compact }: StatRowProps) {
   const { lang } = useLang();
   const t = STRINGS[lang];
 
   return (
     <div>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+      <div className={compact ? "grid grid-cols-2 xl:grid-cols-4 gap-3" : "grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4"}>
         {ORDER.map((sev) => {
           const n = counts ? counts[sev] : null;
           return (
@@ -74,13 +76,15 @@ export function StatRow({ counts, medCount, maxMeds }: StatRowProps) {
             </div>
           );
         })}
-        <StatTile
-          label={t.meds}
-          value={medCount}
-          pill={
-            <StatusPill tone="neutral">{t.of(medCount, maxMeds)}</StatusPill>
-          }
-        />
+        {!compact && (
+          <StatTile
+            label={t.meds}
+            value={medCount}
+            pill={
+              <StatusPill tone="neutral">{t.of(medCount, maxMeds)}</StatusPill>
+            }
+          />
+        )}
       </div>
       <p className="sr-only" aria-live="polite">
         {t.live(counts, medCount)}

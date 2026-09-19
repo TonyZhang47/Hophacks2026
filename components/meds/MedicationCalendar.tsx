@@ -36,7 +36,6 @@ export function MedicationCalendar({ meds }: { meds: Med[] }) {
   const [medicine, setMedicine] = useState("");
   const [note, setNote] = useState("");
   const [status, setStatus] = useState<"planned" | "taken">("planned");
-  const [repeat, setRepeat] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   useEffect(() => {
@@ -93,26 +92,18 @@ export function MedicationCalendar({ meds }: { meds: Med[] }) {
       );
       return;
     }
-    const added: CalendarEntry[] = [];
-    for (
-      let i = 0;
-      i < (repeat && status === "planned" && !editing ? 7 : 1);
-      i++
-    ) {
-      const d = new Date(date);
-      d.setDate(d.getDate() + i);
-      added.push({
+    const added: CalendarEntry[] = [
+      {
         id: editing || crypto.randomUUID(),
         medicine: medicine.trim(),
-        scheduled: `${localDay(d)}T${time}`,
+        scheduled: `${localDay(date)}T${time}`,
         status,
-        takenAt: status === "taken" ? d.toISOString() : undefined,
+        takenAt: status === "taken" ? date.toISOString() : undefined,
         note: note.trim(),
-      });
-    }
+      },
+    ];
     save([...entries.filter((x) => x.id !== editing), ...added]);
     setEditing(null);
-    setRepeat(false);
     setMessage(es ? "Entrada guardada." : "Calendar updated.");
   }
   function moveMonth(delta: number) {
@@ -140,7 +131,7 @@ export function MedicationCalendar({ meds }: { meds: Med[] }) {
             : "A little structure for your day. Track planned and taken doses. Saved in this browser; no notifications."
         }
       />
-      <div className="grid lg:grid-cols-[1.1fr_1fr] gap-8">
+      <div className={editing ? "grid lg:grid-cols-[1.1fr_1fr] gap-8" : ""}>
         <div>
           <div className="flex justify-between items-center mb-4">
             <Button
@@ -232,17 +223,11 @@ export function MedicationCalendar({ meds }: { meds: Med[] }) {
             </Button>
           </div>
         </div>
+        {/* Entries are added from "How much and when" above; this form only edits an existing one. */}
+        {editing && (
         <div>
           <form onSubmit={submit} className="space-y-3">
-            <h3 className="text-title">
-              {editing
-                ? es
-                  ? "Editar entrada"
-                  : "Edit entry"
-                : es
-                  ? "Planifique o registre una toma"
-                  : "Plan ahead, or log a dose"}
-            </h3>
+            <h3 className="text-title">{es ? "Editar entrada" : "Edit entry"}</h3>
             <TextField
               label={es ? "Medicamento" : "Calendar medicine"}
               list="calendar-medicines"
@@ -283,10 +268,7 @@ export function MedicationCalendar({ meds }: { meds: Med[] }) {
             <Select
               label={es ? "Estado" : "Status"}
               value={status}
-              onChange={(e) => {
-                setStatus(e.target.value as typeof status);
-                setRepeat(false);
-              }}
+              onChange={(e) => setStatus(e.target.value as typeof status)}
             >
               <option value="planned">{es ? "Planificada" : "Planned"}</option>
               <option value="taken">
@@ -306,18 +288,6 @@ export function MedicationCalendar({ meds }: { meds: Med[] }) {
                 es ? "Sus propias indicaciones" : "Your own directions"
               }
             />
-            {status === "planned" && !editing && (
-              <label className="flex gap-2 text-meta items-center">
-                <input
-                  type="checkbox"
-                  checked={repeat}
-                  onChange={(e) => setRepeat(e.target.checked)}
-                />
-                {es
-                  ? "Repetir diariamente durante 7 días"
-                  : "Repeat daily for 7 days"}
-              </label>
-            )}
             <div className="flex gap-2">
               <Button type="submit" disabled={!ready}>
                 {editing
@@ -342,7 +312,13 @@ export function MedicationCalendar({ meds }: { meds: Med[] }) {
             </p>
           </form>
         </div>
+        )}
       </div>
+      {!editing && error && (
+        <p role="alert" className="text-meta text-md-error mt-3">
+          {error}
+        </p>
+      )}
       <div className="border-t border-md-outline mt-6 pt-5">
         <h3 className="text-title mb-3">
           {day
@@ -423,7 +399,6 @@ export function MedicationCalendar({ meds }: { meds: Med[] }) {
                     setTime(e.scheduled.slice(11));
                     setStatus(e.status);
                     setNote(e.note);
-                    setRepeat(false);
                   }}
                 >
                   <Pencil size={16} />

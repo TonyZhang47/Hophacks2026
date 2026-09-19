@@ -72,13 +72,14 @@ const T = {
       "Official label text is the FDA-approved drug label — the same source pharmacists use. We look it up by this medicine's name. If nothing is on file, we cannot check your directions against that source. That can happen with a store-brand or combination product we cannot match, a supplement, a compounded medicine, or a name we do not recognize. Follow what your own bottle says, and ask a pharmacist to confirm.",
     disclaimer: "Educational only. Talk with a pharmacist or doctor before changing how you take any medicine.",
     networkError: "Something went wrong. Please try again.",
-    startOver: "Start over",
+    startOver: "Add another medication",
     addToCalendar: "Add this to my calendar",
     calendarHint:
       "Saved only in this browser. This is a log of the times you choose — not a reminder or a recommended schedule.",
     calendarMedicine: "Calendar medicine name",
     calendarTimes: "Times",
-    calendarRepeat: "Repeat daily for 7 days",
+    calendarRepeat: "Repeat daily until",
+    calendarRepeatHint: "Leave as today for a single day.",
     calendarNote: "Optional note",
     calendarSaved: "Added to your calendar.",
     calendarFailed: "Could not save to the calendar on this device.",
@@ -126,13 +127,14 @@ const T = {
       "El texto oficial de la etiqueta es la ficha aprobada por la FDA, la misma fuente que usan los farmacéuticos. La buscamos por el nombre de este medicamento. Si no hay nada registrado, no podemos comparar sus indicaciones con esa fuente. Puede pasar con una marca de tienda o un producto combinado que no reconocemos, un suplemento, un medicamento compuesto o un nombre que no identificamos. Siga lo que dice su propio frasco y pida a un farmacéutico que lo confirme.",
     disclaimer: "Solo con fines educativos. Hable con un farmacéutico o médico antes de cambiar cómo toma cualquier medicamento.",
     networkError: "Algo salió mal. Inténtelo de nuevo.",
-    startOver: "Empezar de nuevo",
+    startOver: "Agregar otro medicamento",
     addToCalendar: "Agregar a mi calendario",
     calendarHint:
       "Se guarda solo en este navegador. Es un registro de los horarios que elija, no un recordatorio ni una pauta de dosis.",
     calendarMedicine: "Nombre en el calendario",
     calendarTimes: "Horarios",
-    calendarRepeat: "Repetir diariamente durante 7 días",
+    calendarRepeat: "Repetir a diario hasta",
+    calendarRepeatHint: "Deje la fecha de hoy para un solo día.",
     calendarNote: "Nota opcional",
     calendarSaved: "Agregado a su calendario.",
     calendarFailed: "No se pudo guardar en el calendario de este dispositivo.",
@@ -148,6 +150,18 @@ const UNIT_ES: Record<DoseInput["unitLabel"], string> = {
   patch: "parche",
   unit: "unidad",
 };
+
+/** YYYY-MM-DD in local time. */
+function localDayString(d: Date) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+/** Number of calendar days from today through `until` (inclusive), at least 1, at most a year. */
+function daysThrough(until: string) {
+  const end = new Date(`${until}T12:00`);
+  const start = new Date(`${localDayString(new Date())}T12:00`);
+  if (Number.isNaN(end.getTime())) return 1;
+  return Math.min(Math.max(Math.round((end.getTime() - start.getTime()) / 86_400_000) + 1, 1), 366);
+}
 
 /** Fail-closed text must never carry a digit. Strip defensively and flag it if it ever happens. */
 function noDigits(s: string, field: string): string {
@@ -227,7 +241,7 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
   const [addToCalendar, setAddToCalendar] = useState(false);
   const [calName, setCalName] = useState("");
   const [calTimes, setCalTimes] = useState<string[]>(["08:00"]);
-  const [calRepeat, setCalRepeat] = useState(false);
+  const [calUntil, setCalUntil] = useState(() => localDayString(new Date()));
   const [calNote, setCalNote] = useState("");
   const [calMsg, setCalMsg] = useState("");
 
@@ -258,7 +272,7 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
       setAddToCalendar(false);
       setCalName(data.input.drugName || otherName.trim() || med?.name || "");
       setCalTimes(suggestedTimes(data.input.timesPerDay));
-      setCalRepeat(false);
+      setCalUntil(localDayString(new Date()));
       setCalNote(data.input.howOftenText || "");
       setCalMsg("");
       setPhase("confirm");
@@ -303,7 +317,7 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
           ? addPlannedDoses({
               medicine: name,
               times: calTimes,
-              days: calRepeat ? 7 : 1,
+              days: daysThrough(calUntil),
               note: calNote,
             })
           : [];
@@ -483,15 +497,15 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
                     />
                   ))}
                 </div>
-                <label className="flex items-center gap-2 text-meta">
-                  <input
-                    type="checkbox"
-                    checked={calRepeat}
-                    onChange={(e) => setCalRepeat(e.target.checked)}
-                    disabled={busy}
-                  />
-                  {t.calendarRepeat}
-                </label>
+                <TextField
+                  label={t.calendarRepeat}
+                  type="date"
+                  min={localDayString(new Date())}
+                  value={calUntil}
+                  onChange={(e) => setCalUntil(e.target.value || localDayString(new Date()))}
+                  hint={t.calendarRepeatHint}
+                  disabled={busy}
+                />
                 <TextField
                   label={t.calendarNote}
                   value={calNote}

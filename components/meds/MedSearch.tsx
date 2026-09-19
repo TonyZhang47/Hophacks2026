@@ -224,7 +224,7 @@ export function MedSearch({ meds, onAdd, max = 10 }: MedSearchProps) {
             const { generic, brands } = medLabel(m);
             return (
               <li
-                key={m.rxcui}
+                key={`${m.rxcui}-${i}`}
                 id={optId(i)}
                 role="option"
                 aria-selected={isActive}

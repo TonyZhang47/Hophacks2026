@@ -499,7 +499,7 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
 
   return (
     <Panel className={className} aria-label={t.panel}>
-      <div className="space-y-8 max-w-3xl">
+      <div className="space-y-8">
         <section className="space-y-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <MedicinePicker
