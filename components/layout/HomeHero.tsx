@@ -7,11 +7,11 @@ import { SeverityChip } from "@/components/ui/SeverityChip";
 
 const T = {
   en: {
-    eyebrow: "A little clarity, every day",
-    desc: "Understand how food and medicine fit together. Make sense of your bottle, and find a rhythm for your day.",
+    desc: "Accessibility, Assistive, Anywhere.",
+    blurb:
+      "RxPlain turns dense medication labels into plain language you can read or hear, and helps people — including non-native English speakers and remote communities — find nearby clinics when they need a human next step.",
     primary: "Start with my medicines",
     calendar: "My calendar",
-    note: "No account needed. A space to understand.",
     rows: [
       { a: "Medicine 1", b: "", sev: "major" as const },
       { a: "Medicine 2", b: "", sev: "moderate" as const },
@@ -24,11 +24,11 @@ const T = {
     bubble2: "Better with dinner.",
   },
   es: {
-    eyebrow: "Un poco de claridad, cada día",
-    desc: "Entienda cómo se relacionan sus alimentos y medicamentos. Lea su etiqueta y encuentre un ritmo para su día.",
+    desc: "Accesibilidad, asistencia, en cualquier lugar.",
+    blurb:
+      "RxPlain convierte las etiquetas densas de medicamentos en un lenguaje sencillo que puede leer o escuchar, y ayuda a las personas — incluidas quienes no hablan inglés nativo y las comunidades remotas — a encontrar clínicas cercanas cuando necesitan el siguiente paso con una persona.",
     primary: "Empezar con mis medicamentos",
     calendar: "Abrir calendario",
-    note: "Sin cuenta. Un espacio para entender.",
     rows: [
       { a: "Medicamento 1", b: "", sev: "major" as const },
       { a: "Medicamento 2", b: "", sev: "moderate" as const },
@@ -69,23 +69,9 @@ export function HomeHero() {
       <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
         {/* Left: the former top half */}
         <div>
-          <p className="eyebrow mb-5">{t.eyebrow}</p>
-          <h1>
-            {lang === "es" ? (
-              <>
-                Sus medicamentos.
-                <br />
-                <em>La vida cotidiana.</em>
-              </>
-            ) : (
-              <>
-                Your medicines.
-                <br />
-                <em>Meet everyday life.</em>
-              </>
-            )}
-          </h1>
-          <p className="hero-description !mx-0">{t.desc}</p>
+          <h1>RxPlain</h1>
+          <p className="hero-description !mx-0 !mb-3 !text-black">{t.desc}</p>
+          <p className="hero-description !mx-0 !mt-0 !text-black">{t.blurb}</p>
           <div className="flex flex-wrap gap-3">
             <Link className="hero-button" href="/meds#my-medicines">
               {t.primary}
@@ -96,7 +82,6 @@ export function HomeHero() {
               <CalendarDays size={16} />
             </Link>
           </div>
-          <p className="text-meta text-md-on-surface-variant mt-4">{t.note}</p>
         </div>
 
         {/* Right: four quiet tiles — my medicines, calendar, clinics, community */}
@@ -152,7 +137,7 @@ export function HomeHero() {
             {/* Community */}
             <Tile href="/community" icon={MessageSquare} title={t.tiles.community}>
               <div className="space-y-2">
-                <span className="block w-10/12 rounded-2xl rounded-bl-md bg-md-surface-container-low px-3 py-2 text-[11px] text-md-on-background">
+                <span className="block w-10/12 rounded-2xl rounded-bl-md bg-md-tertiary px-3 py-2 text-[11px] text-md-on-tertiary">
                   {t.bubble1}
                 </span>
                 <span className="block w-9/12 ml-auto rounded-2xl rounded-br-md bg-md-primary px-3 py-2 text-[11px] text-md-on-primary">

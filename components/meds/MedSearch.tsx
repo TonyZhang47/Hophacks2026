@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { Button } from "@/components/ui/Button";
-import { genericFor } from "@/lib/plainNames";
 import { filterCommon, mergeLive, GENERIC_OPTIONS } from "@/lib/medOptions";
 import { Search } from "lucide-react";
 import { TextField } from "@/components/ui/TextField";
@@ -54,8 +52,6 @@ export function MedSearch({ meds, onAdd, max = 10 }: MedSearchProps) {
           count: (n: number) => (n === 1 ? "1 resultado" : `${n} resultados`),
           searching: "Buscando…",
           addedMsg: (s: string) => `${s} agregado.`,
-          addTyped: "Agregar nombre escrito",
-          unrecognized: "Los nombres sin verificar se marcan como desconocidos.",
         }
       : {
           label: "Search for a medicine",
@@ -68,8 +64,6 @@ export function MedSearch({ meds, onAdd, max = 10 }: MedSearchProps) {
           count: (n: number) => (n === 1 ? "1 result" : `${n} results`),
           searching: "Searching…",
           addedMsg: (s: string) => `${s} added.`,
-          addTyped: "Add typed name",
-          unrecognized: "Unrecognized names will be marked unknown.",
         };
 
   // Local filter is instant; the live lookup only runs when the bundled list is thin.
@@ -186,23 +180,6 @@ export function MedSearch({ meds, onAdd, max = 10 }: MedSearchProps) {
         style={{ paddingLeft: "2.5rem" }}
       />
 
-      <Button
-        variant="text"
-        size="sm"
-        className="mt-2"
-        disabled={full || q.trim().length < 2}
-        onClick={() => {
-          const name = q.trim().slice(0, 80);
-          const generic = genericFor(name) || name.toLowerCase();
-          const known = GENERIC_OPTIONS.find(
-            (m) => m.name.toLowerCase() === name.toLowerCase() || m.ingredientName === generic,
-          );
-          choose(known || { name, rxcui: `manual:${name.toLowerCase()}`, ingredientName: generic });
-        }}
-      >
-        {t.addTyped}
-      </Button>
-      <p className="text-meta text-md-on-surface-variant mt-1">{t.unrecognized}</p>
       <p aria-live="polite" className="sr-only">
         {loading ? t.searching : announce}
       </p>

@@ -7,14 +7,14 @@ import { useLang } from "@/components/LanguageContext";
 
 const T = {
   en: {
-    title: "Medication talk",
+    title: "Community",
     subtitle: "Choose a medicine, share how it went for you, and read what others say. Experiences, not advice.",
-    note: "Anonymous · public · not medical advice",
+    note: "Anonymous · Public · Not Medical Advice",
   },
   es: {
-    title: "Conversación sobre medicamentos",
+    title: "Comunidad",
     subtitle: "Elija un medicamento, cuente cómo le fue y lea lo que dicen otras personas. Experiencias, no consejos.",
-    note: "Anónimo · público · no es consejo médico",
+    note: "Anónimo · Público · No Es Consejo Médico",
   },
 } as const;
 

@@ -15,7 +15,7 @@ const config: Config = {
           "on-primary": "#FFFFFF",
           "secondary-container": "#EEEAE3", // chips, tonal buttons
           "on-secondary-container": "#332D26",
-          tertiary: "#96664D", // accent (charts, links, FAB)
+          tertiary: "#28a2a7", // accent (charts, links, FAB)
           "on-tertiary": "#FFFFFF",
           "surface-container": "#FFFFFF", // panels / cards
           "surface-container-low": "#F6F3ED", // inputs, nested wells

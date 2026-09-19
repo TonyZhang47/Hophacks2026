@@ -189,7 +189,7 @@ const TAG_LABEL: Record<Lang, Record<SideEffectTag, string>> = {
 
 const T = {
   en: {
-    title: "Medication talk",
+    title: "Community",
     subtitle: "What people say about their own side effects. Experiences, not advice.",
     listen: "Listen",
     selectedMed: "Which medicine's posts?",
@@ -226,7 +226,7 @@ const T = {
     whatHappened: "What happened for you?",
     placeholder:
       "What happened for you? e.g. Nausea the first two weeks, then it settled once I took it with dinner.",
-    hint: (n: number) => `${n} left. Your own experience only — no dose advice, no names, no contact details.`,
+    hint: (n: number) => `${n} characters left. Your own experience only — no dose advice, no names, no contact details.`,
     tagsLegend: "Tags (optional)",
     postingAs: "Posting as",
     about: "about",
@@ -244,13 +244,13 @@ const T = {
     postN: (i: number, drug: string, when: string, body: string) =>
       `Post ${i}, about ${drug}, ${when}: ${body}`,
     notAdvice: "These are other people's experiences, not medical advice.",
-    panel: "Medication talk",
+    panel: "Community",
     seeOriginal: "See original",
     seeTranslation: "See translation",
     autoTranslated: "Automatic translation. It may contain errors — see the original if in doubt.",
   },
   es: {
-    title: "Conversación sobre medicamentos",
+    title: "Comunidad",
     subtitle: "Lo que las personas dicen de sus propios efectos secundarios. Experiencias, no consejos.",
     listen: "Escuchar",
     selectedMed: "¿De qué medicamento quiere ver publicaciones?",
@@ -287,7 +287,7 @@ const T = {
     whatHappened: "¿Qué le pasó a usted?",
     placeholder:
       "¿Qué le pasó? ej. Náuseas las primeras dos semanas; luego se calmaron cuando lo tomé con la cena.",
-    hint: (n: number) => `${n} restantes. Solo su experiencia — sin consejos de dosis, sin nombres, sin datos de contacto.`,
+    hint: (n: number) => `${n} caracteres restantes. Solo su experiencia — sin consejos de dosis, sin nombres, sin datos de contacto.`,
     tagsLegend: "Etiquetas (opcional)",
     postingAs: "Publicando como",
     about: "sobre",
@@ -305,7 +305,7 @@ const T = {
     postN: (i: number, drug: string, when: string, body: string) =>
       `Publicación ${i}, sobre ${drug}, ${when}: ${body}`,
     notAdvice: "Estas son experiencias de otras personas, no consejos médicos.",
-    panel: "Conversación sobre medicamentos",
+    panel: "Comunidad",
     seeOriginal: "Ver original",
     seeTranslation: "Ver traducción",
     autoTranslated: "Traducción automática. Puede contener errores — vea el original si tiene dudas.",
@@ -538,8 +538,8 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
   const shownTerms = terms.slice(0, 5);
 
   return (
-    <Panel className={className} aria-label={t.panel}>
-      <div className="space-y-8">
+    <div className={`space-y-6 ${className ?? ""}`} aria-label={t.panel}>
+      <Panel>
         <section className="space-y-4">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <MedicinePicker
@@ -557,57 +557,6 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
               variant="outlined"
               label={t.listen}
             />
-          </div>
-
-          <div aria-labelledby={`${ids}-terms-h`} className="space-y-2">
-            <h3 id={`${ids}-terms-h`} className="eyebrow">
-              {t.topTerms(selectedGeneric || t.allMeds)}
-            </h3>
-            {shownTerms.length === 0 ? (
-              <p className="text-meta text-md-on-surface-variant">
-                {loading ? t.loading : t.noTerms}
-              </p>
-            ) : (
-              <ul
-                className="flex flex-wrap gap-2 list-none p-0 m-0"
-                aria-label={t.termsAria}
-              >
-                {shownTerms.map((item) => (
-                  <li key={item.term}>
-                    <Chip
-                      selected={term === item.term}
-                      onClick={() =>
-                        setTerm((cur) => (cur === item.term ? null : item.term))
-                      }
-                      aria-label={`${item.term}, ${t.mentioned(item.count)}${term === item.term ? t.selected : ""}`}
-                    >
-                      {item.term}
-                      <span
-                        className={
-                          term === item.term
-                            ? "text-md-on-primary/70"
-                            : "text-md-on-surface-variant"
-                        }
-                      >
-                        · {item.count}
-                      </span>
-                    </Chip>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {term && (
-              <p className="text-meta text-md-on-surface-variant">
-                {t.showing(term)}{" "}
-                <button
-                  type="button"
-                  onClick={() => setTerm(null)}
-                  className="text-md-tertiary underline underline-offset-4 rounded"
-                >
-                  {t.showAll}
-                </button>
-              </p>
-            )}
           </div>
 
           <div
@@ -699,10 +648,11 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
             )}
           </div>
         </section>
+      </Panel>
 
+      <Panel>
         <PostForm handle={handle} selectedMed={selectedMed} onPosted={load} lang={lang} />
-
-        <p className="text-meta text-md-on-surface-variant">
+        <p className="text-meta text-md-on-surface-variant mt-4">
           {t.ifWorries}{" "}
           <a
             href={MEDWATCH}
@@ -714,7 +664,9 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
           </a>
           .
         </p>
+      </Panel>
 
+      <Panel>
         <section
           aria-labelledby={`${ids}-posts-h`}
           aria-live="polite"
@@ -724,6 +676,56 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
           <h3 id={`${ids}-posts-h`} className="eyebrow">
             {t.whatPeople}
           </h3>
+          <div aria-labelledby={`${ids}-terms-h`} className="space-y-2">
+            <h3 id={`${ids}-terms-h`} className="eyebrow">
+              {t.topTerms(selectedGeneric || t.allMeds)}
+            </h3>
+            {shownTerms.length === 0 ? (
+              <p className="text-meta text-md-on-surface-variant">
+                {loading ? t.loading : t.noTerms}
+              </p>
+            ) : (
+              <ul
+                className="flex flex-wrap gap-2 list-none p-0 m-0"
+                aria-label={t.termsAria}
+              >
+                {shownTerms.map((item) => (
+                  <li key={item.term}>
+                    <Chip
+                      selected={term === item.term}
+                      onClick={() =>
+                        setTerm((cur) => (cur === item.term ? null : item.term))
+                      }
+                      aria-label={`${item.term}, ${t.mentioned(item.count)}${term === item.term ? t.selected : ""}`}
+                    >
+                      {item.term}
+                      <span
+                        className={
+                          term === item.term
+                            ? "text-md-on-primary/70"
+                            : "text-md-on-surface-variant"
+                        }
+                      >
+                        · {item.count}
+                      </span>
+                    </Chip>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {term && (
+              <p className="text-meta text-md-on-surface-variant">
+                {t.showing(term)}{" "}
+                <button
+                  type="button"
+                  onClick={() => setTerm(null)}
+                  className="text-md-tertiary underline underline-offset-4 rounded"
+                >
+                  {t.showAll}
+                </button>
+              </p>
+            )}
+          </div>
           {loadError && (
             <p role="alert" className="text-meta text-md-error">
               {loadError}
@@ -801,8 +803,8 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
             </ul>
           )}
         </section>
-      </div>
-    </Panel>
+      </Panel>
+    </div>
   );
 }
 
