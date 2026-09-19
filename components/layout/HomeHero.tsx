@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, CalendarDays, MapPin, Pill, Volume2 } from "lucide-react";
+import { ArrowRight, CalendarDays, MapPin, MessageSquare, Pill, type LucideIcon } from "lucide-react";
 import { useLang } from "@/components/LanguageContext";
 import { SeverityChip } from "@/components/ui/SeverityChip";
 
@@ -12,18 +12,16 @@ const T = {
     primary: "Start with my medicines",
     calendar: "My calendar",
     note: "No account needed. A space to understand.",
-    nav: ["My medicines", "Calendar", "Clinics", "Community"],
-    greeting: "Tom, here's what we found",
     rows: [
       { a: "Metformin", b: "Alcohol", sev: "major" as const },
       { a: "Warfarin", b: "Leafy greens · vitamin K", sev: "moderate" as const },
       { a: "Ibuprofen", b: "Food or milk", sev: "minor" as const },
     ],
-    whyTitle: "Your directions, in plain words",
-    why: "Take 1 tablet by mouth, 2 times a day, with food.",
-    listen: "Listen",
-    clinicTitle: "Near you",
-    clinic: { name: "Mountain Laurel Medical Center", meta: "1.9 miles · Takes Medicaid & Medicare" },
+    tiles: { meds: "My medicines", calendar: "Calendar", clinics: "Clinics", community: "Community" },
+    days: ["M", "T", "W", "T", "F", "S", "S"],
+    clinicPill: "1.9 miles · takes Medicaid",
+    bubble1: "Nausea the first week?",
+    bubble2: "Better with dinner.",
   },
   es: {
     eyebrow: "Un poco de claridad, cada día",
@@ -31,23 +29,37 @@ const T = {
     primary: "Empezar con mis medicamentos",
     calendar: "Abrir calendario",
     note: "Sin cuenta. Un espacio para entender.",
-    nav: ["Mis medicamentos", "Calendario", "Clínicas", "Comunidad"],
-    greeting: "Tom, esto es lo que encontramos",
     rows: [
       { a: "Metformina", b: "Alcohol", sev: "major" as const },
       { a: "Warfarina", b: "Verduras de hoja · vitamina K", sev: "moderate" as const },
       { a: "Ibuprofeno", b: "Comida o leche", sev: "minor" as const },
     ],
-    whyTitle: "Sus indicaciones, en palabras sencillas",
-    why: "Tome 1 tableta por la boca, 2 veces al día, con comida.",
-    listen: "Escuchar",
-    clinicTitle: "Cerca de usted",
-    clinic: { name: "Mountain Laurel Medical Center", meta: "1.9 millas · Acepta Medicaid y Medicare" },
+    tiles: { meds: "Mis medicamentos", calendar: "Calendario", clinics: "Clínicas", community: "Comunidad" },
+    days: ["L", "M", "X", "J", "V", "S", "D"],
+    clinicPill: "1.9 millas · acepta Medicaid",
+    bubble1: "¿Náuseas la primera semana?",
+    bubble2: "Mejor con la cena.",
   },
 } as const;
 
+/** One of the four tiles: icon + short title, then a tiny illustration. Whole tile is a link. */
+function Tile({ href, icon: Icon, title, children }: { href: string; icon: LucideIcon; title: string; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className="rounded-xl bg-md-surface-container border border-md-outline p-3 sm:p-4 flex flex-col gap-3 hover:shadow-md transition-shadow duration-200 ease-md"
+    >
+      <span className="flex items-center gap-2 text-meta font-medium text-md-on-background">
+        <Icon size={15} className="text-md-on-surface-variant" aria-hidden="true" />
+        {title}
+      </span>
+      <span aria-hidden="true">{children}</span>
+    </Link>
+  );
+}
+
 /**
- * Landing: headline block on the left, one quiet product preview on the right. Nothing else.
+ * Landing: headline block on the left, four quiet tiles on the right. Nothing else.
  */
 export function HomeHero() {
   const { lang } = useLang();
@@ -87,53 +99,67 @@ export function HomeHero() {
           <p className="text-meta text-md-on-surface-variant mt-4">{t.note}</p>
         </div>
 
-        {/* Right: one combined preview window */}
-        <div className="rounded-2xl bg-md-surface-container-low border border-md-outline p-3 sm:p-5" aria-hidden="true">
-          <div className="grid grid-cols-[104px_1fr] sm:grid-cols-[132px_1fr] gap-3">
-            <div className="rounded-xl bg-md-surface-container border border-md-outline p-3 text-meta text-md-on-surface-variant space-y-2.5">
-              <p className="flex items-center gap-1.5 text-md-on-background font-medium">
-                <Pill size={14} /> RxPlain
-              </p>
-              {t.nav.map((n, i) => (
-                <p key={n} className={i === 0 ? "text-md-on-background font-medium" : ""}>
-                  {i === 0 ? "• " : ""}
-                  {n}
-                </p>
-              ))}
-            </div>
-            <div className="space-y-3 min-w-0">
-              <div className="rounded-xl bg-md-surface-container border border-md-outline p-3 sm:p-4">
-                <p className="text-meta font-medium text-md-on-background mb-3">{t.greeting}</p>
-                <ul className="space-y-2.5">
-                  {t.rows.map((r) => (
-                    <li key={r.a} className="flex items-center justify-between gap-3">
-                      <span className="flex items-center gap-2 min-w-0">
-                        <span className="h-8 w-8 rounded-lg bg-md-primary shrink-0" />
-                        <span className="min-w-0">
-                          <span className="block text-meta font-medium text-md-on-background truncate">{r.a}</span>
-                          <span className="block text-[11px] text-md-on-surface-variant truncate">{r.b}</span>
-                        </span>
-                      </span>
-                      <SeverityChip severity={r.sev} className="scale-90 origin-right" />
-                    </li>
-                  ))}
-                </ul>
+        {/* Right: four quiet tiles — my medicines, calendar, clinics, community */}
+        <div className="rounded-2xl bg-md-surface-container-low border border-md-outline p-3 sm:p-5">
+          <div className="grid grid-cols-2 gap-3">
+            {/* My medicines */}
+            <Tile href="/meds#my-medicines" icon={Pill} title={t.tiles.meds}>
+              <ul className="space-y-2">
+                {t.rows.map((r) => (
+                  <li key={r.a} className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-2 min-w-0">
+                      <span className="h-6 w-6 rounded-md bg-md-primary shrink-0" />
+                      <span className="text-meta text-md-on-background truncate">{r.a}</span>
+                    </span>
+                    <SeverityChip severity={r.sev} className="scale-[0.8] origin-right" />
+                  </li>
+                ))}
+              </ul>
+            </Tile>
+
+            {/* Calendar */}
+            <Tile href="/meds#calendar" icon={CalendarDays} title={t.tiles.calendar}>
+              <div className="grid grid-cols-7 gap-1 text-center text-[10px] text-md-on-surface-variant">
+                {t.days.map((d, i) => (
+                  <span key={i}>{d}</span>
+                ))}
+                {Array.from({ length: 14 }, (_, i) => (
+                  <span
+                    key={i}
+                    className={`h-6 rounded-md grid place-items-center ${
+                      i === 9 ? "bg-md-primary text-md-on-primary" : "bg-md-surface-container-low"
+                    }`}
+                  >
+                    {[2, 5, 9, 12].includes(i) && <span className={`h-1.5 w-1.5 rounded-full ${i === 9 ? "bg-md-on-primary" : "bg-md-primary"}`} />}
+                  </span>
+                ))}
               </div>
-              <div className="rounded-xl bg-md-surface-container border border-md-outline p-3 sm:p-4">
-                <p className="eyebrow mb-2">{t.whyTitle}</p>
-                <p className="text-meta text-md-on-background">{t.why}</p>
-                <span className="mt-3 inline-flex items-center gap-1.5 rounded-full border border-md-outline px-2.5 h-7 text-[11px] text-md-on-background">
-                  <Volume2 size={12} /> {t.listen}
+            </Tile>
+
+            {/* Clinics */}
+            <Tile href="/clinics" icon={MapPin} title={t.tiles.clinics}>
+              <div className="relative h-16 rounded-lg bg-md-surface-container-low overflow-hidden">
+                <span className="absolute inset-0 opacity-40" style={{ backgroundImage: "radial-gradient(#c8bfb1 1px, transparent 1px)", backgroundSize: "10px 10px" }} />
+                <span className="absolute left-[38%] top-[30%] h-3 w-3 rounded-full bg-md-primary ring-4 ring-md-primary/15" />
+                <span className="absolute left-[70%] top-[58%] h-2 w-2 rounded-full bg-md-on-surface-variant" />
+                <span className="absolute left-[18%] top-[64%] h-2 w-2 rounded-full bg-md-on-surface-variant" />
+              </div>
+              <span className="mt-2 inline-flex items-center rounded-full bg-md-secondary-container px-2 h-6 text-[11px] text-md-on-background">
+                {t.clinicPill}
+              </span>
+            </Tile>
+
+            {/* Community */}
+            <Tile href="/community" icon={MessageSquare} title={t.tiles.community}>
+              <div className="space-y-2">
+                <span className="block w-10/12 rounded-2xl rounded-bl-md bg-md-surface-container-low px-3 py-2 text-[11px] text-md-on-background">
+                  {t.bubble1}
+                </span>
+                <span className="block w-9/12 ml-auto rounded-2xl rounded-br-md bg-md-primary px-3 py-2 text-[11px] text-md-on-primary">
+                  {t.bubble2}
                 </span>
               </div>
-              <div className="rounded-xl bg-md-surface-container border border-md-outline p-3 sm:p-4">
-                <p className="eyebrow mb-2 flex items-center gap-1.5">
-                  <MapPin size={12} /> {t.clinicTitle}
-                </p>
-                <p className="text-meta font-medium text-md-on-background">{t.clinic.name}</p>
-                <p className="text-[11px] text-md-on-surface-variant mt-0.5">{t.clinic.meta}</p>
-              </div>
-            </div>
+            </Tile>
           </div>
         </div>
       </div>
