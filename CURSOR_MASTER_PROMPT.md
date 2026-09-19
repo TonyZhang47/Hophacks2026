@@ -36,6 +36,19 @@ Implement end-to-end vertical slices. Prefer a working demo path over incomplete
 - **Legal:** Ship footer links to Privacy Policy and Terms (`/privacy`, `/terms` pages that render [`PRIVACY.md`](PRIVACY.md) / [`TERMS.md`](TERMS.md) content, or static routes). Short first-run note: educational demo, not medical advice, see Terms. Community tab gets its own one-line note: anonymous, public, not medical advice, no personal details.
 - **Copy tone:** "share sheet," "plain language," "hear this," "questions to ask," "people near you" — avoid clinic/EHR/CDS language.
 
+## UI / visual design (follow `DESIGN_SYSTEM.md`)
+Use the **Material You (Material Design 3)** style from [designprompts.dev/material-design](https://www.designprompts.dev/material-design), as condensed and adapted in [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md). Read that file before writing any component. Where it and the original prompt disagree, `DESIGN_SYSTEM.md` wins (it raises body text to 20px, adds severity tokens with text labels, and makes reduced-motion mandatory).
+
+Non-negotiables in one line each:
+- Purple seed palette: background `#FFFBFE` (never pure white), primary `#6750A4`, cards on `#F3EDF7`, chips on `#E8DEF8`. Tokens live in `tailwind.config.ts` as `md-*` / `sev-*`; no raw hex in components.
+- **Roboto** via `next/font/google` (400/500/700). Body text **20px**; nothing under 14px.
+- **Pill buttons everywhere** (`rounded-full`), cards `rounded-3xl`, hero/graph container `rounded-[48px]`, MD3 filled text fields (rounded top, 2px bottom border).
+- Depth from tonal surfaces + `shadow-sm → shadow-md` on hover; 2–3 organic `blur-3xl` shapes behind the hero and the Community header, `aria-hidden`.
+- State layers (`bg-md-primary/90`, `/10`), `active:scale-95`, `cubic-bezier(0.2,0,0,1)`, 200–300ms, and a `prefers-reduced-motion` override.
+- Severity, coverage, and status are always **words** plus color, never color alone.
+- The **Listen** button is a filled primary pill with a speaker icon, top-right of every card; "Read all" is a tertiary FAB.
+- Build the reusable pieces once: `Button` (filled / tonal / outlined / text / fab), `Card`, `Chip`, `TextField`, `ListenButton`, `SeverityChip`, `BlurBackdrop`.
+
 ## Stack (do not expand without a strong reason)
 - **Frontend:** Next.js (App Router) + TypeScript + Tailwind
 - **Backend:** Next.js Route Handlers (**only** place that talks to Snowflake or vendor APIs)
@@ -338,7 +351,7 @@ CORTEX_SEARCH_SERVICE=LABEL_SEARCH   # optional; if unset, use SQL section looku
 Document in README + `.env.example`. Never commit secrets.
 
 ## Build order (follow this)
-1. Scaffold Next.js + Tailwind; RxPlain header + disclaimer banner; footer links to Privacy + Terms; top nav with **Meds** and **Community**. Add `/api/health`, `next start -p 8080`, `engines.node`, `serverExternalPackages`, and `.do/app.yaml` now so the first deploy works.
+1. Scaffold Next.js + Tailwind; load Roboto and the `md-*` / `sev-*` tokens from `DESIGN_SYSTEM.md`; build `Button`, `Card`, `Chip`, `TextField`, `ListenButton` (stub), `SeverityChip`, `BlurBackdrop`; RxPlain header + disclaimer banner; footer links to Privacy + Terms; top nav with **Meds** and **Community**. Add `/api/health`, `next start -p 8080`, `engines.node`, `serverExternalPackages`, and `.do/app.yaml` now so the first deploy works.
 2. `lib/snowflake.ts` singleton connection helper + `scripts/seed-*.ts` for `INTERACTIONS`, `DOSE_LIMITS`, `ZIP_CENTROIDS`, `CLINICS` (and empty cache/community tables). Seeds run locally, never from a route.
 3. RxNorm search UI + med chips (`/api/meds/search`, optional cache write).
 4. Pairwise check via Snowflake + openFDA evidence (`/api/interactions/check`). While here, write full label sections for each looked-up RxCUI into `LABEL_SECTIONS`.
@@ -362,6 +375,7 @@ Document in README + `.env.example`. Never commit secrets.
 - **Community → talk:** posting works anonymously; a post saying "just double it" is rejected with a reason; the top-terms chips show counts and filter the list; the openFDA adverse-reactions snippet is visible beside them.
 - Share-sheet PDF downloads with med list + flagged pairs + dose lines + disclaimer.
 - Keyboard can complete the main path; focus states visible.
+- UI matches `DESIGN_SYSTEM.md`: Roboto, `#FFFBFE` background, pill buttons, `rounded-3xl` cards on `#F3EDF7`, filled text fields, blur shapes behind the hero, 20px body text, reduced-motion respected. No raw hex in components.
 - All lookups go through `/api/*` → Snowflake (not client-side DB); no `ELEVENLABS_API_KEY` / `XAI_API_KEY` in the client bundle.
 - App is reachable on a DigitalOcean App Platform URL for judges.
 - README: setup, env vars, DigitalOcean + Snowflake + Grok-primary / ElevenLabs-secondary voice, guardrail explanation, philanthropy + accessibility focus.

@@ -24,7 +24,7 @@ This is an **educational accessibility** product, not medical advice and not a c
 
 **UI accessibility baseline (MVP):** large readable type, high contrast, keyboard-usable search and actions, visible focus states, severity not conveyed by color alone (include text labels), and a persistent disclaimer. Voice is a core path, not a gimmick.
 
-For the full Cursor build instruction, see [`CURSOR_MASTER_PROMPT.md`](CURSOR_MASTER_PROMPT.md).
+For the full Cursor build instruction, see [`CURSOR_MASTER_PROMPT.md`](CURSOR_MASTER_PROMPT.md). Visual style is **Material You (Material Design 3)**, purple seed, Roboto, pill buttons, tonal surfaces — tokens and rules in [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), adapted from [designprompts.dev/material-design](https://www.designprompts.dev/material-design) with larger body text and mandatory reduced-motion for accessibility.
 
 **Legal:** [Privacy Policy](PRIVACY.md) · [Terms and Conditions](TERMS.md) — link both in the app footer; include a short consent line on first use (educational demo only).
 
