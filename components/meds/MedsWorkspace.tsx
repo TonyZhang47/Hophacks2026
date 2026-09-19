@@ -1,18 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Sparkles } from "lucide-react";
-import { BlurBackdrop } from "@/components/ui/BlurBackdrop";
+import { AlertTriangle, Pill, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ListenButton } from "@/components/ui/ListenButton";
+import { PageHeader, Panel, PanelHeader } from "@/components/ui/Panel";
+import { PlainText } from "@/components/ui/PlainText";
+import { StatusPill } from "@/components/ui/SeverityChip";
+import { Select } from "@/components/ui/TextField";
 import { useLang } from "@/components/LanguageContext";
 import { MedSearch } from "@/components/meds/MedSearch";
 import { MedChips } from "@/components/meds/MedChips";
 import { InteractionGraph } from "@/components/meds/InteractionGraph";
-import { InteractionCardList, cardSpeechText } from "@/components/meds/InteractionCardList";
+import { InteractionCardList, cardSpeechText, findResult, type SeverityFilter } from "@/components/meds/InteractionCardList";
+import { StatRow, type SeverityCounts } from "@/components/meds/StatRow";
+import { SharePanel } from "@/components/meds/SharePanel";
 import { DoseExplainer } from "@/components/dose/DoseExplainer";
-import { ShareSheetButton } from "@/components/share/ShareSheetButton";
-import type { DoseInput, DoseResult, InteractionCard, InteractionResult, Med } from "@/lib/types";
+import type { DoseInput, DoseResult, InteractionCard, InteractionResult, Med, Severity } from "@/lib/types";
 
 const STORAGE_KEY = "rxplain.meds";
 const MIN_MEDS = 2;
@@ -26,6 +30,8 @@ const DEMO_SET: Med[] = [
   { name: "Lisinopril", rxcui: "29046", ingredientName: "lisinopril" },
 ];
 
+const SEVERITIES: Severity[] = ["major", "moderate", "minor", "unknown"];
+
 interface CheckResponse {
   results: InteractionResult[];
   cards: InteractionCard[];
@@ -36,34 +42,50 @@ type Dose = { input: DoseInput; result: DoseResult };
 
 const STRINGS = {
   en: {
-    h1: "Understand your medicines in plain language",
-    sub: "For anyone who has ever left the pharmacy with a bag of boxes and no idea how they fit together. Add what you take, then read or hear what it means.",
+    h1: "Your medicines",
+    sub: "Add what you take, check the pairs, then read or hear what it means in plain words.",
     check: "Check my medicines",
     checking: "Checking…",
     demo: "Try a demo set",
     clear: "Clear list",
+    demoPill: "Demo mode",
+    demoTitle: "Seed data and template wording. Live databases and Grok are not connected.",
     needMore: (n: number) => (n === 0 ? `Add at least ${MIN_MEDS} medicines to check them.` : `Add ${MIN_MEDS - n} more to check.`),
     ready: (n: number) => `${n} medicines ready to check.`,
-    resultsTitle: "What we found",
-    readAll: "Read all",
+    myMeds: "My medicines",
+    map: "Map of your medicines",
+    mapEmpty: "Add two or more medicines to draw the map.",
+    interactions: "Possible interactions",
+    interactionsEmpty: "Results for each pair will appear here after you check your medicines.",
+    readSummary: "Read summary",
+    readAll: "Read all cards",
+    filterLabel: "Show",
+    filterAll: "All severities",
+    sev: { major: "Major", moderate: "Moderate", minor: "Minor", unknown: "Unknown" } as Record<Severity, string>,
     error: "We could not check these medicines right now. Please try again in a moment.",
-    demoNote: "Demo mode: seed data and template wording. Live databases and Grok are not connected.",
-    counts: (n: number) => `${n} of ${MAX_MEDS} medicines`,
   },
   es: {
-    h1: "Entienda sus medicamentos en palabras sencillas",
-    sub: "Para cualquiera que haya salido de la farmacia con una bolsa de cajas sin saber cómo se combinan. Agregue lo que toma y lea o escuche lo que significa.",
+    h1: "Sus medicamentos",
+    sub: "Agregue lo que toma, revise los pares y lea o escuche lo que significa en palabras sencillas.",
     check: "Revisar mis medicamentos",
     checking: "Revisando…",
     demo: "Probar un ejemplo",
     clear: "Borrar lista",
+    demoPill: "Modo demostración",
+    demoTitle: "Datos de ejemplo y textos de plantilla. Las bases de datos en vivo y Grok no están conectados.",
     needMore: (n: number) => (n === 0 ? `Agregue al menos ${MIN_MEDS} medicamentos para revisarlos.` : `Agregue ${MIN_MEDS - n} más para revisar.`),
     ready: (n: number) => `${n} medicamentos listos para revisar.`,
-    resultsTitle: "Lo que encontramos",
-    readAll: "Leer todo",
+    myMeds: "Mis medicamentos",
+    map: "Mapa de sus medicamentos",
+    mapEmpty: "Agregue dos o más medicamentos para dibujar el mapa.",
+    interactions: "Posibles interacciones",
+    interactionsEmpty: "Los resultados de cada par aparecerán aquí después de revisar sus medicamentos.",
+    readSummary: "Leer resumen",
+    readAll: "Leer todas las tarjetas",
+    filterLabel: "Mostrar",
+    filterAll: "Todas las gravedades",
+    sev: { major: "Mayor", moderate: "Moderada", minor: "Menor", unknown: "Desconocida" } as Record<Severity, string>,
     error: "No pudimos revisar estos medicamentos ahora. Intente de nuevo en un momento.",
-    demoNote: "Modo demostración: datos de ejemplo y textos de plantilla. Las bases de datos en vivo y Grok no están conectados.",
-    counts: (n: number) => `${n} de ${MAX_MEDS} medicamentos`,
   },
 };
 
@@ -100,6 +122,7 @@ export function MedsWorkspace() {
   const [data, setData] = useState<CheckResponse | null>(null);
   const [doses, setDoses] = useState<Dose[]>([]);
   const [demoMode, setDemoMode] = useState(false);
+  const [filter, setFilter] = useState<SeverityFilter>("all");
   const resultsRef = useRef<HTMLDivElement>(null);
   const checkedLang = useRef<"en" | "es">(lang);
 
@@ -113,7 +136,7 @@ export function MedsWorkspace() {
     if (hydrated) saveMeds(meds);
   }, [meds, hydrated]);
 
-  // One-time health check for the demo-mode note.
+  // One-time health check for the demo-mode pill.
   useEffect(() => {
     let cancelled = false;
     fetch("/api/health")
@@ -140,30 +163,28 @@ export function MedsWorkspace() {
     setDoses((prev) => prev.filter((d) => d.input.rxcui !== rxcui));
   }, []);
 
-  const runCheck = useCallback(
-    async (list: Med[], language: "en" | "es") => {
-      if (list.length < MIN_MEDS) return;
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch("/api/interactions/check", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ meds: list, lang: language }),
-        });
-        if (!res.ok) throw new Error(String(res.status));
-        const json = (await res.json()) as CheckResponse;
-        setData(json);
-        checkedLang.current = language;
-        requestAnimationFrame(() => resultsRef.current?.focus());
-      } catch {
-        setError(STRINGS[language].error);
-      } finally {
-        setLoading(false);
-      }
-    },
-    [],
-  );
+  const runCheck = useCallback(async (list: Med[], language: "en" | "es") => {
+    if (list.length < MIN_MEDS) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/interactions/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ meds: list, lang: language }),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      const json = (await res.json()) as CheckResponse;
+      setData(json);
+      setFilter("all");
+      checkedLang.current = language;
+      requestAnimationFrame(() => resultsRef.current?.focus());
+    } catch {
+      setError(STRINGS[language].error);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   // If the person switches language after checking, refresh the cards in that language.
   useEffect(() => {
@@ -175,6 +196,7 @@ export function MedsWorkspace() {
     setMeds(DEMO_SET);
     setData(null);
     setDoses([]);
+    setError(null);
   };
 
   const clearAll = () => {
@@ -191,103 +213,144 @@ export function MedsWorkspace() {
     });
   }, []);
 
-  const readAllText = useMemo(() => {
+  const counts = useMemo<SeverityCounts | null>(() => {
+    if (!data) return null;
+    const c: SeverityCounts = { major: 0, moderate: 0, minor: 0, unknown: 0 };
+    for (const r of data.results) c[r.severity]++;
+    return c;
+  }, [data]);
+
+  const readCardsText = useCallback(() => {
     if (!data) return "";
-    return [data.summary, ...data.cards.map((c) => cardSpeechText(c, lang))].join(" ");
-  }, [data, lang]);
+    const visible = filter === "all" ? data.cards : data.cards.filter((c) => c.severity === filter);
+    return visible.map((c) => cardSpeechText(c, lang, findResult(c, data.results))).join(" ");
+  }, [data, filter, lang]);
+
+  const shareData = useMemo(
+    () => ({ meds, cards: data?.cards ?? [], doses, clinic: null }),
+    [meds, data, doses],
+  );
 
   return (
-    <div className="space-y-10 py-6">
-      {/* Hero */}
-      <section className="relative overflow-hidden rounded-3xl sm:rounded-[48px] bg-md-surface-container px-6 py-10 sm:px-12 sm:py-14 shadow-sm">
-        <BlurBackdrop variant="hero" />
-        <div className="relative max-w-3xl space-y-4">
-          <h1 className="text-headline sm:text-display">{t.h1}</h1>
-          <p className="text-body text-md-on-surface-variant">{t.sub}</p>
-          {demoMode && (
-            <p className="inline-flex items-center gap-2 rounded-full bg-md-secondary-container/70 px-4 py-2 text-meta text-md-on-secondary-container">
-              <Sparkles className="h-4 w-4" aria-hidden="true" />
-              {t.demoNote}
-            </p>
-          )}
-        </div>
-      </section>
-
-      {/* Search + chips + check */}
-      <section aria-labelledby="add-title" className="space-y-5">
-        <h2 id="add-title" className="sr-only">
-          {lang === "es" ? "Agregar medicamentos" : "Add medicines"}
-        </h2>
-        <MedSearch meds={meds} onAdd={addMed} max={MAX_MEDS} />
-
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <p className="text-meta text-md-on-surface-variant" aria-live="polite">
-            {t.counts(meds.length)} · {meds.length < MIN_MEDS ? t.needMore(meds.length) : t.ready(meds.length)}
-          </p>
-          <div className="flex gap-2">
-            <Button variant="text" size="sm" onClick={loadDemo}>
+    <div className="pb-6">
+      <PageHeader
+        title={t.h1}
+        subtitle={t.sub}
+        actions={
+          <>
+            {demoMode && (
+              <span title={t.demoTitle} className="mr-1">
+                <StatusPill tone="neutral">{t.demoPill}</StatusPill>
+              </span>
+            )}
+            <Button variant="outlined" size="sm" onClick={loadDemo}>
               {t.demo}
             </Button>
-            {meds.length > 0 && (
-              <Button variant="text" size="sm" onClick={clearAll}>
-                {t.clear}
-              </Button>
+            <Button variant="text" size="sm" onClick={clearAll} disabled={meds.length === 0}>
+              {t.clear}
+            </Button>
+          </>
+        }
+      />
+
+      <StatRow counts={counts} medCount={meds.length} maxMeds={MAX_MEDS} />
+
+      {/* Row A is its own grid so the sticky left panel is bounded by this row, not the whole page. */}
+      <div className="grid grid-cols-12 gap-6 mt-6">
+        {/* Row A, left: my medicines */}
+        <Panel as="section" className="col-span-12 lg:col-span-4 lg:sticky lg:top-20 self-start" aria-labelledby="meds-panel-title">
+          <PanelHeader icon={Pill} title={t.myMeds} />
+          <span id="meds-panel-title" className="sr-only">
+            {t.myMeds}
+          </span>
+          <div className="space-y-4">
+            <MedSearch meds={meds} onAdd={addMed} max={MAX_MEDS} />
+            <MedChips meds={meds} onRemove={removeMed} />
+            <p className="text-meta text-md-on-surface-variant" aria-live="polite">
+              {meds.length < MIN_MEDS ? t.needMore(meds.length) : t.ready(meds.length)}
+            </p>
+            <Button
+              variant="filled"
+              size="lg"
+              className="w-full"
+              disabled={!canCheck}
+              onClick={() => runCheck(meds, lang)}
+              aria-busy={loading}
+            >
+              {loading ? t.checking : t.check}
+            </Button>
+            {error && (
+              <p role="alert" className="text-meta text-md-error">
+                {error}
+              </p>
+            )}
+            {data && (
+              <div className="rounded-lg bg-md-surface-container-low border border-md-outline p-3 space-y-2" aria-live="polite">
+                <PlainText as="p" className="text-label" text={data.summary} />
+                <ListenButton size="sm" variant="outlined" label={t.readSummary} text={data.summary} />
+              </div>
             )}
           </div>
+        </Panel>
+
+        {/* Row A, right: graph */}
+        <Panel as="section" className="col-span-12 lg:col-span-8" aria-labelledby="map-panel-title">
+          <PanelHeader icon={Share2} title={t.map} />
+          <span id="map-panel-title" className="sr-only">
+            {t.map}
+          </span>
+          {meds.length >= MIN_MEDS ? (
+            <InteractionGraph meds={meds} results={data?.results ?? []} />
+          ) : (
+            <p className="text-body text-md-on-surface-variant">{t.mapEmpty}</p>
+          )}
+        </Panel>
+      </div>
+
+      <div className="grid grid-cols-12 gap-6 mt-6">
+        {/* Row B: interaction cards */}
+        <div ref={resultsRef} tabIndex={-1} className="col-span-12 min-w-0 scroll-mt-24 focus:outline-none">
+        <Panel as="section" aria-labelledby="interactions-panel-title">
+          <PanelHeader
+            icon={AlertTriangle}
+            title={t.interactions}
+            actions={
+              data ? (
+                <>
+                  <Select label={t.filterLabel} hideLabel value={filter} onChange={(e) => setFilter(e.target.value as SeverityFilter)}>
+                    <option value="all">{t.filterAll}</option>
+                    {SEVERITIES.map((s) => (
+                      <option key={s} value={s}>
+                        {t.sev[s]}
+                      </option>
+                    ))}
+                  </Select>
+                  <ListenButton size="sm" variant="outlined" label={t.readAll} text="" getText={readCardsText} />
+                </>
+              ) : undefined
+            }
+          />
+          <span id="interactions-panel-title" className="sr-only">
+            {t.interactions}
+          </span>
+          <div className="max-h-[70vh] overflow-y-auto pr-1" aria-live="polite">
+            {data ? (
+              <InteractionCardList cards={data.cards} results={data.results} filter={filter} />
+            ) : (
+              <p className="text-body text-md-on-surface-variant">{t.interactionsEmpty}</p>
+            )}
+          </div>
+        </Panel>
         </div>
 
-        <MedChips meds={meds} onRemove={removeMed} />
-
-        <div className="flex flex-wrap items-center gap-3">
-          <Button variant="filled" size="lg" disabled={!canCheck} onClick={() => runCheck(meds, lang)} aria-busy={loading}>
-            {loading ? t.checking : t.check}
-          </Button>
+        {/* Row C, left: dose explainer (dose module renders its own header) */}
+        <div className="col-span-12 lg:col-span-7 min-w-0">
+          <DoseExplainer meds={meds} onResult={onDoseResult} />
         </div>
 
-        {error && (
-          <p role="alert" className="rounded-3xl bg-sev-major/10 px-5 py-3 text-body text-sev-major">
-            {error}
-          </p>
-        )}
-      </section>
-
-      {/* Results */}
-      {data && (
-        <div ref={resultsRef} tabIndex={-1} className="space-y-10 scroll-mt-24 focus:outline-none">
-          <section aria-labelledby="results-title" className="space-y-3">
-            <h2 id="results-title" className="text-title">
-              {t.resultsTitle}
-            </h2>
-            <div className="flex flex-wrap items-center gap-3">
-              <p className="text-body font-medium flex-1 min-w-[16rem]" aria-live="polite">
-                {data.summary}
-              </p>
-              <ListenButton text={data.summary} />
-            </div>
-          </section>
-
-          <InteractionGraph meds={meds} results={data.results} />
-
-          <InteractionCardList cards={data.cards} results={data.results} />
-        </div>
-      )}
-
-      {/* Dose explainer (dose module) */}
-      {meds.length > 0 && <DoseExplainer meds={meds} onResult={onDoseResult} />}
-
-      {/* Share sheet (voice/share module) */}
-      {data && (
-        <div className="flex flex-wrap items-center gap-3">
-          <ShareSheetButton data={{ meds, cards: data.cards, doses, clinic: null }} />
-        </div>
-      )}
-
-      {/* Read-all FAB */}
-      {data && readAllText && (
-        <div className="fixed bottom-6 right-6 z-40">
-          <ListenButton variant="fab" label={t.readAll} text={readAllText} className="!w-auto !px-5 !h-14" />
-        </div>
-      )}
+        {/* Row C, right: share sheet */}
+        <SharePanel data={shareData} className="col-span-12 lg:col-span-5 self-start" />
+      </div>
     </div>
   );
 }

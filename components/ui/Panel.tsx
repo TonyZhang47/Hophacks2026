@@ -1,4 +1,4 @@
-import type { HTMLAttributes, ReactNode } from "react";
+import { forwardRef, type HTMLAttributes, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
 
 /**
@@ -13,14 +13,17 @@ export interface PanelProps extends HTMLAttributes<HTMLElement> {
   padded?: boolean;
 }
 
-export function Panel({ as = "section", padded = true, className = "", children, ...props }: PanelProps) {
+export const Panel = forwardRef<HTMLElement, PanelProps>(function Panel(
+  { as = "section", padded = true, className = "", children, ...props },
+  ref,
+) {
   const Tag = as as unknown as "div";
   return (
-    <Tag className={`panel ${padded ? "p-5" : ""} min-w-0 ${className}`} {...props}>
+    <Tag ref={ref as React.Ref<HTMLDivElement>} className={`panel ${padded ? "p-5" : ""} min-w-0 ${className}`} {...props}>
       {children}
     </Tag>
   );
-}
+});
 
 export function PanelHeader({
   icon: Icon,

@@ -10,6 +10,7 @@
  */
 import type { Db } from "@/lib/db/types";
 import { isXaiConfigured } from "@/lib/env";
+import { plainifyForSpeech } from "@/lib/glossary";
 import type { DoseInput, DoseResult, DoseStatus, LabelChunk, LabelSectionName } from "@/lib/types";
 import {
   FAIL_CLOSED_REASON,
@@ -33,7 +34,9 @@ export interface ExplainDeps {
 const RAG_SECTIONS: LabelSectionName[] = ["dosage_and_administration", "overdosage", "boxed_warning"];
 
 const REWRITE_SYSTEM =
-  "You are a reading aid. You may only restate the user's own directions and quote the provided label text. Never suggest a different dose. If the label text and the user's directions disagree, say so plainly and tell them to ask a pharmacist. Output the JSON schema exactly.";
+  "You are a reading aid. You may only restate the user's own directions and quote the provided label text. Never suggest a different dose. If the label text and the user's directions disagree, say so plainly and tell them to ask a pharmacist. " +
+  "Write for someone who cannot see well and has no medical training: use the plain phrase, not the medical term (say 'low blood sugar', not 'hypoglycemia'; 'by mouth', not 'PO'; 'twice a day', not 'BID'; 'blood thinner', not 'anticoagulant'). Never change a number while doing so. " +
+  "labelQuotes must stay verbatim. Output the JSON schema exactly.";
 
 const COPY = {
   en: {
@@ -234,6 +237,27 @@ function verifyQuotes(quotes: LlmDoseOutput["labelQuotes"], chunks: LabelChunk[]
 }
 
 /* ------------------------------------------------------------------------------------ */
+/* Plain language                                                                        */
+/* ------------------------------------------------------------------------------------ */
+
+/**
+ * Swap medical terms for plain phrases in the lines that reach the screen and the speaker
+ * ("hypoglycemia" → "low blood sugar"). Runs on the template writer's output BEFORE G3, so
+ * every number in the plain text is still checked against the person's directions and the
+ * label. The glossary never introduces a number, so G3 keeps passing; the smoke test asserts
+ * it. `labelQuotes` stay verbatim (the UI renders them through <PlainText>).
+ */
+export function plainifyDraft(draft: LlmDoseOutput): LlmDoseOutput {
+  return {
+    ...draft,
+    plainDose: plainifyForSpeech(draft.plainDose),
+    maxPerDayLine: plainifyForSpeech(draft.maxPerDayLine),
+    missedDoseLine: plainifyForSpeech(draft.missedDoseLine),
+    askYourPharmacist: plainifyForSpeech(draft.askYourPharmacist),
+  };
+}
+
+/* ------------------------------------------------------------------------------------ */
 /* Pipeline                                                                              */
 /* ------------------------------------------------------------------------------------ */
 
@@ -349,6 +373,15 @@ export async function explainDose(input: DoseInput, lang: Lang = "en", deps: Exp
     return finish(baseResult("unverified", ceilingChecked, log, lang, input, out.labelQuotes, copy.guardrail));
   }
   log.push("G2 ok");
+
+  // Plain language (template path). The LLM is asked for plain phrases in its prompt.
+  if (writer === "template") {
+    const plain = plainifyDraft(out);
+    if (plain.plainDose !== out.plainDose || plain.maxPerDayLine !== out.maxPerDayLine || plain.missedDoseLine !== out.missedDoseLine || plain.askYourPharmacist !== out.askYourPharmacist) {
+      log.push("plain: replaced medical terms with plain phrases");
+    }
+    Object.assign(out, plain);
+  }
 
   // Allowed numbers come from the person's confirmed input and the retrieved official chunks.
   const g3 = g3NumericGrounding(out, input, chunks);

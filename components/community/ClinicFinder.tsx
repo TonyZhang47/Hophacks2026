@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useId, useState, type FormEvent } from "react";
-import { LocateFixed, Phone, Search } from "lucide-react";
+import { LocateFixed, MapPin, Phone, Search } from "lucide-react";
 import { useLang, type Lang } from "@/components/LanguageContext";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
 import { ListenButton } from "@/components/ui/ListenButton";
+import { Panel, PanelHeader } from "@/components/ui/Panel";
+import { StatusPill } from "@/components/ui/SeverityChip";
 import { TextField } from "@/components/ui/TextField";
 import type { ClinicResult, SiteType } from "@/lib/types";
 
@@ -58,7 +60,7 @@ function describeForAudio(c: ClinicResult, lang: Lang) {
   return `${c.name}, ${miles} away.${phone ? ` Phone ${phone}.` : ""}${cov} Call to confirm.`;
 }
 
-export function ClinicFinder() {
+export function ClinicFinder({ className = "" }: { className?: string }) {
   const { lang } = useLang();
   const [zip, setZip] = useState("");
   const [zipError, setZipError] = useState<string | undefined>();
@@ -67,6 +69,7 @@ export function ClinicFinder() {
   const [status, setStatus] = useState<"idle" | "locating" | "loading" | "done" | "error">("idle");
   const [message, setMessage] = useState<string>("");
   const [data, setData] = useState<NearResponse | null>(null);
+  const ids = useId();
 
   useEffect(() => {
     try {
@@ -152,12 +155,18 @@ export function ClinicFinder() {
   const results = data?.results ?? [];
 
   return (
-    <div className="space-y-6">
-      <form onSubmit={onSubmit} className="space-y-4" aria-describedby="clinic-form-help">
-        <p id="clinic-form-help" className="text-body text-md-on-surface-variant">
-          Community health centers and rural health clinics near a ZIP code. We only ever use the ZIP, never your exact spot.
+    <Panel className={className} aria-label="Find a clinic">
+      <PanelHeader
+        icon={MapPin}
+        title="Find a clinic"
+        subtitle="Community health centers and rural health clinics near a ZIP. We only use the ZIP, never your exact spot."
+      />
+
+      <form onSubmit={onSubmit} className="space-y-3" aria-describedby={`${ids}-help`}>
+        <p id={`${ids}-help`} className="sr-only">
+          Enter a ZIP code or use your location, then choose filters and press Find clinics.
         </p>
-        <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-end gap-2">
           <TextField
             label="ZIP code"
             inputMode="numeric"
@@ -168,15 +177,21 @@ export function ClinicFinder() {
             value={zip}
             onChange={(e) => setZip(e.target.value.replace(/\D/g, "").slice(0, 5))}
             error={zipError}
-            className="sm:w-48"
+            className="sm:w-40"
           />
-          <Button type="button" variant="outlined" onClick={useMyLocation} disabled={status === "locating"} className="h-14 sm:mb-0">
-            <LocateFixed className="h-5 w-5" aria-hidden="true" />
+          <Button
+            type="button"
+            variant="outlined"
+            onClick={useMyLocation}
+            disabled={status === "locating"}
+            className={`h-11 ${zipError ? "sm:mb-7" : ""}`}
+          >
+            <LocateFixed className="h-4 w-4" aria-hidden="true" />
             {status === "locating" ? "Finding you…" : "Use my location"}
           </Button>
         </div>
-        <fieldset className="space-y-2">
-          <legend className="text-label text-md-on-surface-variant mb-2">Only show clinics that…</legend>
+        <fieldset>
+          <legend className="sr-only">Only show clinics that…</legend>
           <div className="flex flex-wrap gap-2">
             {FILTERS.map((f) => (
               <Chip key={f.key} selected={filters[f.key]} onClick={() => setFilters((s) => ({ ...s, [f.key]: !s[f.key] }))}>
@@ -185,51 +200,53 @@ export function ClinicFinder() {
             ))}
           </div>
         </fieldset>
-        <Button type="submit" size="lg" disabled={status === "loading"}>
-          <Search className="h-5 w-5" aria-hidden="true" />
+        <Button type="submit" disabled={status === "loading"}>
+          <Search className="h-4 w-4" aria-hidden="true" />
           {status === "loading" ? "Searching…" : "Find clinics"}
         </Button>
       </form>
 
-      <div aria-live="polite" aria-busy={status === "loading"} className="space-y-4">
+      <div aria-live="polite" aria-busy={status === "loading"} className="mt-4 space-y-3">
         {status === "error" && (
-          <p role="alert" className="text-body text-md-error">
+          <p role="alert" className="text-meta text-md-error">
             {message}
           </p>
         )}
         {status === "done" && data && (
           <>
-            <p className="text-body text-md-on-surface-variant">
+            <p className="text-meta text-md-on-surface-variant">
               {results.length === 0
                 ? "No clinics within 100 miles."
                 : `${results.length} ${results.length === 1 ? "clinic" : "clinics"} within ${data.radiusUsed} miles, closest first.`}
-              {data.widened && results.length > 0 && <> We widened the search to {data.radiusUsed} miles.</>}
+              {data.widened && results.length > 0 && <> Widened to {data.radiusUsed} miles.</>}
             </p>
             {results.length === 0 ? (
-              <Card>
+              <Card dense>
                 <p className="text-body">
                   We couldn&rsquo;t find a listed clinic within 100 miles of that ZIP. Try fewer filters, or search the national directory at{" "}
-                  <a href={HRSA_FINDER} target="_blank" rel="noreferrer" className="text-md-primary underline underline-offset-4">
+                  <a href={HRSA_FINDER} target="_blank" rel="noreferrer" className="text-md-tertiary underline underline-offset-4">
                     findahealthcenter.hrsa.gov
                   </a>
                   .
                 </p>
               </Card>
             ) : (
-              <ul className="space-y-4 list-none p-0 m-0">
+              <ul className="space-y-3 list-none p-0 m-0 max-h-[65vh] overflow-y-auto pr-1">
                 {results.map((c) => (
-                  <ClinicCard key={c.clinic_id} clinic={c} lang={lang} onConfirmed={refresh} />
+                  <ClinicRow key={c.clinic_id} clinic={c} lang={lang} onConfirmed={refresh} />
                 ))}
               </ul>
             )}
           </>
         )}
       </div>
-    </div>
+    </Panel>
   );
 }
 
-function ClinicCard({ clinic: c, lang, onConfirmed }: { clinic: ClinicResult; lang: Lang; onConfirmed: () => void }) {
+function ClinicRow({ clinic: c, lang, onConfirmed }: { clinic: ClinicResult; lang: Lang; onConfirmed: () => void }) {
+  const [open, setOpen] = useState(false);
+  const ids = useId();
   const address = [c.address, [c.city, c.state].filter(Boolean).join(", "), c.zip].filter(Boolean).join(" · ");
   const coverageWords =
     c.accepts_medicaid && c.accepts_medicare
@@ -242,46 +259,59 @@ function ClinicCard({ clinic: c, lang, onConfirmed }: { clinic: ClinicResult; la
   const distance = c.distanceMiles < 1 ? "Less than a mile away" : `${c.distanceMiles} miles away`;
 
   return (
-    <Card as="li" className="space-y-4">
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-        <div className="space-y-1 min-w-0">
-          <h3 className="text-title break-words">{c.name}</h3>
-          <p className="text-label text-md-on-surface-variant">{SITE_WORDS[c.site_type]}</p>
-        </div>
-        <ListenButton text={describeForAudio(c, lang)} size="sm" variant="tonal" className="shrink-0" />
+    <Card as="li" dense className="space-y-2.5">
+      <div className="min-w-0">
+        <h3 className="text-title break-words leading-snug">{c.name}</h3>
+        <p className="text-meta text-md-on-surface-variant">{SITE_WORDS[c.site_type]}</p>
       </div>
 
-      <p className="text-body">
-        <span className="font-medium">{distance}</span>
+      <p className="text-meta">
+        <span className="font-medium text-md-on-background">{distance}</span>
         <span className="text-md-on-surface-variant"> · {address}</span>
       </p>
 
-      {c.phone && (
-        <a
-          href={`tel:${c.phone.replace(/[^\d+]/g, "")}`}
-          className="inline-flex items-center gap-2 h-11 px-5 rounded-full bg-md-secondary-container text-md-on-secondary-container text-label transition-all duration-200 ease-md hover:bg-md-secondary-container/80 active:scale-95 focus-visible:ring-2 focus-visible:ring-md-primary focus-visible:ring-offset-2"
-        >
-          <Phone className="h-5 w-5" aria-hidden="true" />
-          <span>Call {c.phone}</span>
-        </a>
-      )}
-
       <div className="flex flex-wrap gap-2" aria-label="Coverage">
-        {coverageWords && <Chip asSpan>{coverageWords} · by program rule</Chip>}
-        {c.sliding_fee && <Chip asSpan>Sliding fee · by program rule</Chip>}
+        {coverageWords && <StatusPill tone="info">{coverageWords} · by program rule</StatusPill>}
+        {c.sliding_fee && <StatusPill tone="success">Sliding fee · by program rule</StatusPill>}
         {c.communityConfirmed.map((s) => (
-          <Chip key={s.insurer} asSpan className="bg-md-surface-container-low text-md-on-background">
-            People here confirmed: {s.insurer} ({s.yes} yes{s.no ? `, ${s.no} no` : ""})
-          </Chip>
+          <StatusPill key={s.insurer} tone="neutral">
+            {s.insurer} · {s.yes} yes{s.no ? `, ${s.no} no` : ""}
+          </StatusPill>
         ))}
       </div>
 
-      <p className="text-body text-md-on-surface-variant">
-        <span className="font-medium text-md-on-background">Call to confirm.</span> Program rules say what a clinic must accept; only the clinic can
-        tell you about your plan.
+      <div className="flex flex-wrap items-center gap-2">
+        {c.phone && (
+          <a
+            href={`tel:${c.phone.replace(/[^\d+]/g, "")}`}
+            className="inline-flex items-center gap-2 h-9 px-3.5 rounded-full bg-md-secondary-container text-md-on-secondary-container border border-md-outline text-meta font-medium transition-all duration-200 ease-md hover:bg-md-outline/60 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-md-primary focus-visible:ring-offset-2"
+          >
+            <Phone className="h-4 w-4" aria-hidden="true" />
+            <span>Call {c.phone}</span>
+          </a>
+        )}
+        <ListenButton text={describeForAudio(c, lang)} label={`Listen: ${c.name}`} iconOnly size="sm" variant="outlined" />
+        <Button
+          type="button"
+          variant="text"
+          size="sm"
+          onClick={() => setOpen((o) => !o)}
+          aria-expanded={open}
+          aria-controls={`${ids}-confirm`}
+          className="ml-auto"
+        >
+          {open ? "Hide" : "Add what you learned"}
+        </Button>
+      </div>
+
+      <p className="text-meta text-md-on-surface-variant">
+        <span className="font-medium text-md-on-background">Call to confirm.</span> Program rules say what a clinic must accept; only the clinic can tell
+        you about your plan.
       </p>
 
-      <ConfirmForm clinicId={c.clinic_id} onDone={onConfirmed} />
+      <div id={`${ids}-confirm`} hidden={!open}>
+        {open && <ConfirmForm clinicId={c.clinic_id} onDone={onConfirmed} />}
+      </div>
     </Card>
   );
 }
@@ -322,14 +352,15 @@ function ConfirmForm({ clinicId, onDone }: { clinicId: string; onDone: () => voi
   };
 
   return (
-    <div className="rounded-3xl bg-md-surface-container-low p-4 space-y-3">
-      <p id={`${id}-label`} className="text-label text-md-on-surface-variant">
+    <div className="rounded-xl bg-md-surface-container-low p-3 space-y-2">
+      <p id={`${id}-label`} className="text-meta font-medium text-md-on-surface-variant">
         I called — they take… <span className="font-normal">(community reported, anonymous)</span>
       </p>
       <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
         <TextField
           label="Insurer"
-          placeholder="Blue Cross"
+          hideLabel
+          placeholder="Insurer, e.g. Blue Cross"
           value={insurer}
           maxLength={40}
           onChange={(e) => setInsurer(e.target.value)}
@@ -337,10 +368,10 @@ function ConfirmForm({ clinicId, onDone }: { clinicId: string; onDone: () => voi
           className="sm:flex-1"
         />
         <div className="flex gap-2">
-          <Button type="button" variant="tonal" onClick={() => send(true)} disabled={state === "sending"}>
+          <Button type="button" variant="tonal" className="h-11" onClick={() => send(true)} disabled={state === "sending"}>
             Yes
           </Button>
-          <Button type="button" variant="outlined" onClick={() => send(false)} disabled={state === "sending"}>
+          <Button type="button" variant="outlined" className="h-11" onClick={() => send(false)} disabled={state === "sending"}>
             No
           </Button>
         </div>

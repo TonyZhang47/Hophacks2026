@@ -3,6 +3,8 @@ import { createHash } from "crypto";
 import { z } from "zod";
 import { getDb } from "@/lib/db";
 import { chatJson, isXaiConfigured } from "@/lib/llm";
+import { plainifyForSpeech } from "@/lib/glossary";
+import { displayName, shortName } from "@/lib/plainNames";
 import type { InteractionCard, InteractionResult, Severity } from "@/lib/types";
 
 /**
@@ -29,6 +31,8 @@ const SYSTEM_PROMPT =
   "You are a health explainer for access, not a prescriber. Use ONLY the provided evidence. " +
   "Never tell the person to start, stop, or change a medicine, and never suggest a dose. " +
   "Write short sentences with everyday words; explain any medical word right away. " +
+  "Use the plain phrase, not the medical term: say 'blood thinner' not 'anticoagulant', 'anti-inflammatory pain reliever' not 'NSAID', 'low blood pressure' not 'hypotension', 'stomach and gut' not 'GI'. " +
+  "Refer to each medicine by the generic name given in Drug A / Drug B (the brand names in parentheses are only there so you recognize it). " +
   "If the severity is unknown, say the databases have no listed interaction for this pair and that this is not proof of safety. " +
   "Output ONLY a JSON object with keys: drugA, drugB, severity, whatHappens, howSerious, whatToDo, askYourClinician, citations (array of evidence ids you used).";
 
@@ -50,8 +54,8 @@ function buildUserPrompt(r: InteractionResult, lang: CardLang): string {
     .join("\n");
   return [
     `Language: ${lang === "es" ? "Spanish (everyday, neutral Latin American Spanish)" : "English"}`,
-    `Drug A: ${r.a.name}`,
-    `Drug B: ${r.b.name}`,
+    `Drug A: ${displayName(r.a)}`,
+    `Drug B: ${displayName(r.b)}`,
     `Severity from the interaction database (do not change it): ${r.severity}`,
     r.mechanism ? `Mechanism (DDInter): ${r.mechanism}` : "Mechanism: none listed",
     r.management ? `Management note (DDInter): ${r.management}` : "Management note: none listed",
@@ -299,16 +303,29 @@ const ES: Record<Severity, Template[]> = {
   ],
 };
 
-/** Pick a template variant deterministically from the pair hash so the same pair reads the same way. */
+/**
+ * Pick a template variant deterministically from the pair hash so the same pair reads the same way.
+ * Sentences name each medicine by its generic (common) name and are run through the plain-term
+ * glossary so the JSON itself reads plainly ("blood thinner", not "anticoagulant"); the UI's
+ * PlainText is then only a safety net.
+ */
 function templateCard(r: InteractionResult, lang: CardLang, hash: string): InteractionCard {
   const bank = (lang === "es" ? ES : EN)[r.severity];
   const idx = parseInt(hash.slice(0, 8), 16) % bank.length;
-  const body = bank[idx]({ A: r.a.name, B: r.b.name, mechanism: r.mechanism, management: r.management });
+  const body = bank[idx]({
+    A: shortName(r.a).generic,
+    B: shortName(r.b).generic,
+    mechanism: r.mechanism,
+    management: r.management,
+  });
   return {
     drugA: r.a.name,
     drugB: r.b.name,
     severity: r.severity,
-    ...body,
+    whatHappens: plainifyForSpeech(body.whatHappens),
+    howSerious: plainifyForSpeech(body.howSerious),
+    whatToDo: plainifyForSpeech(body.whatToDo),
+    askYourClinician: body.askYourClinician,
     citations: [...r.sourceIds],
   };
 }

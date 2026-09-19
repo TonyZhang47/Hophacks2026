@@ -43,11 +43,12 @@ export function StatusPill({
   tone = "neutral",
   className = "",
   children,
+  ...rest
 }: {
   tone?: "neutral" | "success" | "warning" | "error" | "info";
   className?: string;
   children: React.ReactNode;
-}) {
+} & Omit<React.HTMLAttributes<HTMLSpanElement>, "children" | "className">) {
   const tones = {
     neutral: "bg-md-secondary-container text-md-on-surface-variant",
     success: "bg-md-success/10 text-md-success",
@@ -56,7 +57,7 @@ export function StatusPill({
     info: "bg-md-tertiary/10 text-md-tertiary",
   };
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full h-6 px-2 text-meta font-medium ${tones[tone]} ${className}`}>
+    <span className={`inline-flex items-center gap-1 rounded-full h-6 px-2 text-meta font-medium ${tones[tone]} ${className}`} {...rest}>
       {children}
     </span>
   );

@@ -42,6 +42,8 @@ export function plainify(text: string): Segment[] {
     const hit = resolve(m[0]);
     if (!hit) continue;
     const i = m.index ?? 0;
+    // Idempotent: if the text here already reads as the plain phrase, leave it alone.
+    if (hit.plain.toLowerCase().startsWith(m[0].toLowerCase()) && text.slice(i, i + hit.plain.length).toLowerCase() === hit.plain.toLowerCase()) continue;
     let before = text.slice(last, i);
     // Fix a/an before the replacement ("an anticoagulant" → "a blood thinner").
     const art = before.match(/(^|\s)(a|an|A|An)\s$/);
@@ -51,7 +53,10 @@ export function plainify(text: string): Segment[] {
       before = before.slice(0, before.length - art[2].length - 1) + want + " ";
     }
     if (before) out.push({ text: before });
-    out.push({ text: hit.plain, original: m[0] });
+    // Keep sentence-initial capitalisation ("NSAIDs inhibit…" → "Anti-inflammatory…").
+    const atSentenceStart = /^[A-Z]/.test(m[0]) && (i === 0 || /(^|[.!?:]\s+|\n\s*)$/.test(text.slice(0, i)));
+    const plain = atSentenceStart ? hit.plain[0].toUpperCase() + hit.plain.slice(1) : hit.plain;
+    out.push({ text: plain, original: m[0] });
     last = i + m[0].length;
   }
   if (last < text.length) out.push({ text: text.slice(last) });

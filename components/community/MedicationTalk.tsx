@@ -1,26 +1,49 @@
 "use client";
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState, type FormEvent } from "react";
-import { BookOpenText, Send } from "lucide-react";
+import { useCallback, useEffect, useId, useState, type FormEvent } from "react";
+import { MessageSquare, Send } from "lucide-react";
+import commonMeds from "@/data/common_meds.json";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
 import { ListenButton } from "@/components/ui/ListenButton";
-import { TextArea } from "@/components/ui/TextField";
+import { Panel, PanelHeader } from "@/components/ui/Panel";
+import { PlainText } from "@/components/ui/PlainText";
+import { Select, TextArea } from "@/components/ui/TextField";
+import { shortName } from "@/lib/plainNames";
 import { SIDE_EFFECT_TAGS, type CommunityPost, type Med, type SideEffectTag, type TopTerm } from "@/lib/types";
 
 const HANDLE_KEY = "rxplain.community.handle";
 const MEDWATCH = "https://www.fda.gov/safety/medwatch-fda-safety-information-and-adverse-event-reporting-program";
 const POST_MAX = 500;
 
-/** Used when /api/meds/search is unavailable; matches the seeded posts. */
-const FALLBACK_MEDS: Med[] = [
-  { name: "metformin", rxcui: "6809", ingredientName: "metformin" },
-  { name: "ibuprofen", rxcui: "5640", ingredientName: "ibuprofen" },
-  { name: "warfarin", rxcui: "11289", ingredientName: "warfarin" },
-  { name: "lisinopril", rxcui: "29046", ingredientName: "lisinopril" },
-  { name: "sertraline", rxcui: "36437", ingredientName: "sertraline" },
-];
+/** Medicines with seeded posts; listed first in the filter. */
+const SEEDED_RXCUI = ["6809", "5640", "11289", "29046", "36437", "17767", "83367", "7646"];
+
+/** Generic entries from data/common_meds.json (brand rows look like "Advil (ibuprofen)"). */
+const ALL_MEDS: Med[] = (commonMeds as Med[]).filter((m) => !/\(/.test(m.name));
+const MED_OPTIONS: { withPosts: Med[]; others: Med[] } = {
+  withPosts: SEEDED_RXCUI.map((rx) => ALL_MEDS.find((m) => m.rxcui === rx)).filter((m): m is Med => !!m),
+  others: ALL_MEDS.filter((m) => !SEEDED_RXCUI.includes(m.rxcui)).sort((a, b) => a.name.localeCompare(b.name)),
+};
+const findMed = (rxcui: string) => ALL_MEDS.find((m) => m.rxcui === rxcui) ?? null;
+
+/** "Ibuprofen (Advil, Motrin)" for <option> text, where styling isn't possible. */
+function optionLabel(m: Med) {
+  const s = shortName(m);
+  return s.brands.length ? `${s.generic} (${s.brands.join(", ")})` : s.generic;
+}
+
+/** Generic capitalized, brand aliases muted. */
+function MedName({ med, brands = true }: { med: Pick<Med, "name" | "rxcui" | "ingredientName">; brands?: boolean }) {
+  const s = shortName(med);
+  return (
+    <>
+      <span>{s.generic}</span>
+      {brands && s.brands.length > 0 && <span className="text-md-on-surface-variant font-normal"> · {s.brands.join(", ")}</span>}
+    </>
+  );
+}
 
 const ADJECTIVES = ["quiet", "gentle", "brave", "sunny", "mellow", "calm", "steady", "patient", "humble", "hopeful", "tender", "bright", "cozy", "wandering", "kind"];
 const ANIMALS = ["otter", "heron", "sparrow", "badger", "fox", "walrus", "crane", "moose", "lynx", "finch", "owl", "tortoise", "beaver", "elk", "seal"];
@@ -77,10 +100,8 @@ const TAG_LABEL: Record<SideEffectTag, string> = {
   other: "Other",
 };
 
-export function MedicationTalk() {
+export function MedicationTalk({ className = "" }: { className?: string }) {
   const handle = useAnonHandle();
-  const [meds, setMeds] = useState<Med[]>(FALLBACK_MEDS);
-  const [medQuery, setMedQuery] = useState("");
   const [selectedMed, setSelectedMed] = useState<Med | null>(null);
   const [term, setTerm] = useState<string | null>(null);
   const [terms, setTerms] = useState<TopTerm[]>([]);
@@ -88,32 +109,7 @@ export function MedicationTalk() {
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
-  const searchTimer = useRef<number | null>(null);
   const ids = useId();
-
-  // Med search-as-you-type; falls back to the seeded five when the route is missing.
-  useEffect(() => {
-    const q = medQuery.trim();
-    if (searchTimer.current) window.clearTimeout(searchTimer.current);
-    if (q.length < 2) {
-      setMeds(FALLBACK_MEDS);
-      return;
-    }
-    searchTimer.current = window.setTimeout(async () => {
-      try {
-        const res = await fetch(`/api/meds/search?q=${encodeURIComponent(q)}`);
-        if (!res.ok) throw new Error(String(res.status));
-        const body = (await res.json()) as { results?: Med[] };
-        const found = (body.results ?? []).filter((m) => m.rxcui && m.name).slice(0, 12);
-        setMeds(found.length ? found : FALLBACK_MEDS.filter((m) => m.name.includes(q.toLowerCase())));
-      } catch {
-        setMeds(FALLBACK_MEDS.filter((m) => m.name.includes(q.toLowerCase())));
-      }
-    }, 250);
-    return () => {
-      if (searchTimer.current) window.clearTimeout(searchTimer.current);
-    };
-  }, [medQuery]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -147,191 +143,182 @@ export function MedicationTalk() {
     void load();
   }, [load]);
 
-  const medOptions = useMemo(() => {
-    const list = [...meds];
-    if (selectedMed && !list.some((m) => m.rxcui === selectedMed.rxcui)) list.unshift(selectedMed);
-    return list;
-  }, [meds, selectedMed]);
+  const selectedGeneric = selectedMed ? shortName(selectedMed).generic : null;
 
-  const listenText = useMemo(() => {
-    const scope = selectedMed ? `for ${selectedMed.name}` : "for all medicines";
+  const listenText = () => {
+    const scope = selectedGeneric ? `for ${selectedGeneric}` : "for all medicines";
     const termLine = terms.length
       ? `Top terms ${scope}: ${terms.slice(0, 8).map((t) => `${t.term}, ${t.count}`).join("; ")}.`
       : `No posts yet ${scope}.`;
-    const postLines = posts.slice(0, 3).map((p, i) => `Post ${i + 1}, about ${p.drug_name}, ${relativeTime(p.created_at)}: ${p.body}`);
+    const postLines = posts
+      .slice(0, 3)
+      .map(
+        (p, i) =>
+          `Post ${i + 1}, about ${shortName({ name: p.drug_name, rxcui: p.rxcui ?? "", ingredientName: p.drug_name }).generic}, ${relativeTime(p.created_at)}: ${p.body}`,
+      );
     return [termLine, ...postLines, "These are other people's experiences, not medical advice."].join(" ");
-  }, [terms, posts, selectedMed]);
-
-  const medSelectId = `${ids}-med`;
-  const medSearchId = `${ids}-medq`;
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Med filter */}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div>
-          <label htmlFor={medSearchId} className="block text-label text-md-on-surface-variant mb-1">
-            Search a medicine
-          </label>
-          <input
-            id={medSearchId}
-            type="search"
-            value={medQuery}
-            onChange={(e) => setMedQuery(e.target.value)}
-            placeholder="metformin"
-            autoComplete="off"
-            className="w-full h-14 rounded-t-lg rounded-b-none bg-md-surface-container-low px-4 text-body text-md-on-background placeholder:text-md-on-background/50 border-b-2 border-md-outline focus:border-md-primary transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-md-primary focus-visible:ring-offset-2"
-          />
-        </div>
-        <div>
-          <label htmlFor={medSelectId} className="block text-label text-md-on-surface-variant mb-1">
-            Show posts about
-          </label>
-          <select
-            id={medSelectId}
-            value={selectedMed?.rxcui ?? ""}
-            onChange={(e) => {
-              const m = medOptions.find((x) => x.rxcui === e.target.value) ?? null;
-              setSelectedMed(m);
-              setTerm(null);
-            }}
-            className="w-full h-14 rounded-t-lg rounded-b-none bg-md-surface-container-low px-4 text-body text-md-on-background border-b-2 border-md-outline focus:border-md-primary transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-md-primary focus-visible:ring-offset-2"
-          >
-            <option value="">All medicines</option>
-            {medOptions.map((m) => (
-              <option key={m.rxcui} value={m.rxcui}>
-                {m.name}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
+    <Panel className={className} aria-label="Medication talk">
+      <PanelHeader
+        icon={MessageSquare}
+        title="Medication talk"
+        subtitle="What people say about their own side effects. Experiences, not advice."
+        actions={
+          <>
+            <Select
+              label="Show posts about"
+              hideLabel
+              value={selectedMed?.rxcui ?? ""}
+              onChange={(e) => {
+                setSelectedMed(findMed(e.target.value));
+                setTerm(null);
+              }}
+              className="max-w-[14rem]"
+            >
+              <option value="">All medicines</option>
+              <optgroup label="With posts">
+                {MED_OPTIONS.withPosts.map((m) => (
+                  <option key={m.rxcui} value={m.rxcui}>
+                    {optionLabel(m)}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Other common medicines">
+                {MED_OPTIONS.others.map((m) => (
+                  <option key={m.rxcui} value={m.rxcui}>
+                    {optionLabel(m)}
+                  </option>
+                ))}
+              </optgroup>
+            </Select>
+            <ListenButton getText={listenText} text="" size="sm" variant="outlined" label="Listen" />
+          </>
+        }
+      />
 
-      {/* Top terms + official label */}
-      <div className="grid gap-4 lg:grid-cols-[1fr_minmax(16rem,20rem)]">
-        <section aria-labelledby={`${ids}-terms-h`} className="space-y-3">
-          <h3 id={`${ids}-terms-h`} className="text-label text-md-on-surface-variant">
-            Top terms {selectedMed ? `for ${selectedMed.name}` : "across all posts"} · tap one to filter
-          </h3>
-          {terms.length === 0 ? (
-            <p className="text-body text-md-on-surface-variant">{loading ? "Loading…" : "No posts yet, so no terms to show."}</p>
-          ) : (
-            <ul className="flex flex-wrap gap-2 list-none p-0 m-0" aria-label="Most mentioned terms">
-              {terms.map((t, i) => (
-                <li key={t.term}>
-                  <Chip
-                    selected={term === t.term}
-                    onClick={() => setTerm((cur) => (cur === t.term ? null : t.term))}
-                    className={i < 3 ? "font-bold" : i < 8 ? "font-medium" : "font-normal"}
-                    aria-label={`${t.term}, mentioned in ${t.count} ${t.count === 1 ? "post" : "posts"}${term === t.term ? ", selected" : ""}`}
-                  >
-                    {t.term} · {t.count}
-                  </Chip>
-                </li>
-              ))}
-            </ul>
-          )}
-          {term && (
-            <p className="text-meta text-md-on-surface-variant">
-              Showing posts that mention &ldquo;{term}&rdquo;.{" "}
-              <button type="button" onClick={() => setTerm(null)} className="text-md-primary underline underline-offset-4 rounded">
-                Show all
-              </button>
-            </p>
-          )}
-        </section>
-
-        <aside
-          aria-labelledby={`${ids}-official-h`}
-          className="rounded-3xl border border-md-outline p-5 space-y-3 self-start"
-        >
-          <div className="flex items-start justify-between gap-3">
-            <h3 id={`${ids}-official-h`} className="inline-flex items-center gap-2 text-label text-md-on-surface-variant">
-              <BookOpenText className="h-5 w-5" aria-hidden="true" />
-              From the label
+      <div className="grid gap-5 lg:grid-cols-5">
+        {/* Left: top terms + official label */}
+        <div className="lg:col-span-2 space-y-5 min-w-0">
+          <section aria-labelledby={`${ids}-terms-h`} className="space-y-2">
+            <h3 id={`${ids}-terms-h`} className="eyebrow">
+              Top terms{selectedGeneric ? ` · ${selectedGeneric}` : ""}
             </h3>
-            {official && <ListenButton text={`From the official label for ${selectedMed?.name ?? "this medicine"}: ${official}`} size="sm" variant="tonal" />}
-          </div>
-          {official ? (
-            <p className="text-body">{official}</p>
-          ) : (
-            <p className="text-body text-md-on-surface-variant">
-              {selectedMed ? "No label text on file for this medicine yet." : "Pick a medicine to see what its official label lists as common side effects."}
-            </p>
-          )}
-          <p className="text-meta text-md-on-surface-variant">Source: openFDA drug label, adverse reactions section.</p>
-        </aside>
-      </div>
+            {terms.length === 0 ? (
+              <p className="text-meta text-md-on-surface-variant">{loading ? "Loading…" : "No posts yet, so no terms to show."}</p>
+            ) : (
+              <ul className="flex flex-wrap gap-2 list-none p-0 m-0" aria-label="Most mentioned terms. Choose one to filter posts.">
+                {terms.map((t) => (
+                  <li key={t.term}>
+                    <Chip
+                      selected={term === t.term}
+                      onClick={() => setTerm((cur) => (cur === t.term ? null : t.term))}
+                      aria-label={`${t.term}, mentioned in ${t.count} ${t.count === 1 ? "post" : "posts"}${term === t.term ? ", selected" : ""}`}
+                    >
+                      {t.term}
+                      <span className={term === t.term ? "text-md-on-primary/70" : "text-md-on-surface-variant"}>· {t.count}</span>
+                    </Chip>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {term && (
+              <p className="text-meta text-md-on-surface-variant">
+                Showing posts that mention &ldquo;{term}&rdquo;.{" "}
+                <button type="button" onClick={() => setTerm(null)} className="text-md-tertiary underline underline-offset-4 rounded">
+                  Show all
+                </button>
+              </p>
+            )}
+          </section>
 
-      {/* Post list */}
-      <section aria-labelledby={`${ids}-posts-h`} className="space-y-4" aria-live="polite" aria-busy={loading}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h3 id={`${ids}-posts-h`} className="text-title">
-            What people say
-          </h3>
-          <ListenButton text={listenText} label="Listen to this" size="sm" />
-        </div>
-        {loadError && (
-          <p role="alert" className="text-body text-md-error">
-            {loadError}
-          </p>
-        )}
-        {!loading && !loadError && posts.length === 0 && (
-          <p className="text-body text-md-on-surface-variant">No posts here yet. Be the first to share how it went for you.</p>
-        )}
-        <ul className="space-y-4 list-none p-0 m-0">
-          {posts.map((p) => (
-            <Card as="li" key={p.post_id} className="space-y-3">
-              <div className="flex flex-wrap items-center gap-2 text-meta text-md-on-surface-variant">
-                <span className="font-medium text-md-on-background">{p.anon_handle}</span>
-                <span aria-hidden="true">·</span>
-                <time dateTime={p.created_at}>{relativeTime(p.created_at)}</time>
-                <Chip asSpan className="h-8 px-3 text-meta">
-                  {p.drug_name}
-                </Chip>
-              </div>
-              <p className="text-body">{p.body}</p>
-              {p.side_effect_tags.length > 0 && (
-                <ul className="flex flex-wrap gap-2 list-none p-0 m-0" aria-label="Tags">
-                  {p.side_effect_tags.map((t) => (
-                    <li key={t}>
-                      <Chip asSpan className="h-8 px-3 text-meta bg-md-surface-container-low text-md-on-background">
-                        {TAG_LABEL[t] ?? t}
-                      </Chip>
-                    </li>
-                  ))}
-                </ul>
+          <section aria-labelledby={`${ids}-official-h`} className="bg-md-surface-container-low rounded-xl p-4 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <h3 id={`${ids}-official-h`} className="eyebrow">
+                From the label
+              </h3>
+              {official && (
+                <ListenButton
+                  text={`From the official label for ${selectedGeneric ?? "this medicine"}: ${official}`}
+                  label="Listen: from the label"
+                  iconOnly
+                  size="sm"
+                  variant="outlined"
+                />
               )}
-            </Card>
-          ))}
-        </ul>
-      </section>
+            </div>
+            {official ? (
+              <PlainText as="p" text={official} className="text-body" />
+            ) : (
+              <p className="text-meta text-md-on-surface-variant">
+                {selectedMed ? "No label text on file for this medicine yet." : "Pick a medicine to see what its official label lists as common side effects."}
+              </p>
+            )}
+            <p className="text-meta text-md-on-surface-variant">Source: openFDA drug label, adverse reactions section.</p>
+          </section>
+        </div>
 
-      <PostForm handle={handle} selectedMed={selectedMed} medOptions={medOptions} onPosted={load} />
+        {/* Right: post form + list */}
+        <div className="lg:col-span-3 space-y-4 min-w-0">
+          <PostForm handle={handle} selectedMed={selectedMed} onPosted={load} />
 
-      <aside className="rounded-3xl bg-md-secondary-container text-md-on-secondary-container p-5 space-y-2">
-        <p className="text-body">
-          These are other people&rsquo;s experiences, not medical advice. If a side effect worries you, call your pharmacist or clinic.
-        </p>
-        <a href={MEDWATCH} target="_blank" rel="noreferrer" className="inline-block text-label text-md-primary underline underline-offset-4">
-          Report a side effect to FDA MedWatch
-        </a>
-      </aside>
-    </div>
+          <p className="text-meta text-md-on-surface-variant">
+            If a side effect worries you, call your pharmacist or clinic.{" "}
+            <a href={MEDWATCH} target="_blank" rel="noreferrer" className="text-md-tertiary underline underline-offset-4">
+              Report a side effect to FDA MedWatch
+            </a>
+            .
+          </p>
+
+          <section aria-labelledby={`${ids}-posts-h`} aria-live="polite" aria-busy={loading} className="space-y-2">
+            <h3 id={`${ids}-posts-h`} className="eyebrow">
+              What people say
+            </h3>
+            {loadError && (
+              <p role="alert" className="text-meta text-md-error">
+                {loadError}
+              </p>
+            )}
+            {!loading && !loadError && posts.length === 0 && (
+              <p className="text-meta text-md-on-surface-variant">No posts here yet. Be the first to share how it went for you.</p>
+            )}
+            {posts.length > 0 && (
+              <ul className="space-y-3 list-none p-0 m-0 max-h-[60vh] overflow-y-auto pr-1">
+                {posts.map((p) => (
+                  <Card as="li" key={p.post_id} dense className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2 text-meta text-md-on-surface-variant">
+                      <Chip asSpan className="h-7 px-2.5">
+                        {shortName({ name: p.drug_name, rxcui: p.rxcui ?? "", ingredientName: p.drug_name }).generic}
+                      </Chip>
+                      <span className="font-medium text-md-on-background">{p.anon_handle}</span>
+                      <span aria-hidden="true">·</span>
+                      <time dateTime={p.created_at}>{relativeTime(p.created_at)}</time>
+                    </div>
+                    <PlainText as="p" text={p.body} className="text-body" />
+                    {p.side_effect_tags.length > 0 && (
+                      <ul className="flex flex-wrap gap-2 list-none p-0 m-0" aria-label="Tags">
+                        {p.side_effect_tags.map((t) => (
+                          <li key={t}>
+                            <Chip asSpan className="h-7 px-2.5 bg-md-surface-container-low">
+                              {TAG_LABEL[t] ?? t}
+                            </Chip>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </Card>
+                ))}
+              </ul>
+            )}
+          </section>
+        </div>
+      </div>
+    </Panel>
   );
 }
 
-function PostForm({
-  handle,
-  selectedMed,
-  medOptions,
-  onPosted,
-}: {
-  handle: string;
-  selectedMed: Med | null;
-  medOptions: Med[];
-  onPosted: () => void;
-}) {
+function PostForm({ handle, selectedMed, onPosted }: { handle: string; selectedMed: Med | null; onPosted: () => void }) {
   const [med, setMed] = useState<Med | null>(selectedMed);
   const [body, setBody] = useState("");
   const [tags, setTags] = useState<SideEffectTag[]>([]);
@@ -342,12 +329,6 @@ function PostForm({
   useEffect(() => {
     if (selectedMed) setMed(selectedMed);
   }, [selectedMed]);
-
-  const options = useMemo(() => {
-    const list = [...medOptions];
-    if (med && !list.some((m) => m.rxcui === med.rxcui)) list.unshift(med);
-    return list;
-  }, [medOptions, med]);
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -366,10 +347,11 @@ function PostForm({
       const res = await fetch("/api/community/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rxcui: med.rxcui, drugName: med.name, body: text, tags, anonHandle: handle }),
+        body: JSON.stringify({ rxcui: med.rxcui, drugName: med.ingredientName || med.name, body: text, tags, anonHandle: handle }),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
+        // 422 carries the moderation reason as a plain sentence; shown inline under the text area.
         setErr(data.error ?? "We couldn't post that. Please try again.");
         setState("idle");
         return;
@@ -387,56 +369,52 @@ function PostForm({
   const remaining = POST_MAX - body.length;
 
   return (
-    <form onSubmit={submit} className="rounded-3xl bg-md-surface-container p-6 space-y-4 shadow-sm" aria-labelledby={`${ids}-h`}>
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 id={`${ids}-h`} className="text-title">
+    <form onSubmit={submit} className="space-y-3" aria-labelledby={`${ids}-h`}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 id={`${ids}-h`} className="eyebrow">
           Share how it went for you
         </h3>
-        <p className="text-meta text-md-on-surface-variant">
-          Posting as <span className="font-medium text-md-on-background">{handle}</span>
-        </p>
-      </div>
-
-      <div>
-        <label htmlFor={`${ids}-med`} className="block text-label text-md-on-surface-variant mb-1">
-          Medicine
-        </label>
-        <select
-          id={`${ids}-med`}
-          required
-          value={med?.rxcui ?? ""}
-          onChange={(e) => setMed(options.find((m) => m.rxcui === e.target.value) ?? null)}
-          className="w-full h-14 rounded-t-lg rounded-b-none bg-md-surface-container-low px-4 text-body text-md-on-background border-b-2 border-md-outline focus:border-md-primary transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-md-primary focus-visible:ring-offset-2"
-        >
+        <Select label="Medicine" hideLabel required value={med?.rxcui ?? ""} onChange={(e) => setMed(findMed(e.target.value))} className="max-w-[14rem]">
           <option value="">Choose a medicine</option>
-          {options.map((m) => (
-            <option key={m.rxcui} value={m.rxcui}>
-              {m.name}
-            </option>
-          ))}
-        </select>
+          <optgroup label="With posts">
+            {MED_OPTIONS.withPosts.map((m) => (
+              <option key={m.rxcui} value={m.rxcui}>
+                {optionLabel(m)}
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="Other common medicines">
+            {MED_OPTIONS.others.map((m) => (
+              <option key={m.rxcui} value={m.rxcui}>
+                {optionLabel(m)}
+              </option>
+            ))}
+          </optgroup>
+        </Select>
       </div>
 
       <TextArea
         label="What happened for you?"
-        placeholder="Nausea the first two weeks, then it settled once I took it with dinner."
+        hideLabel
+        placeholder="What happened for you? e.g. Nausea the first two weeks, then it settled once I took it with dinner."
         value={body}
         maxLength={POST_MAX}
         onChange={(e) => setBody(e.target.value.slice(0, POST_MAX))}
-        hint={`${remaining} characters left. Your own experience only — no dose advice, no names, no contact details.`}
+        hint={`${remaining} left. Your own experience only — no dose advice, no names, no contact details.`}
         error={err || undefined}
+        className="[&_textarea]:min-h-20"
       />
 
       <fieldset>
-        <legend className="text-label text-md-on-surface-variant mb-2">Tags (optional)</legend>
+        <legend className="sr-only">Tags (optional)</legend>
         <div className="flex flex-wrap gap-2">
           {SIDE_EFFECT_TAGS.map((t) => {
             const on = tags.includes(t);
             return (
               <label
                 key={t}
-                className={`inline-flex items-center gap-2 h-10 px-4 rounded-full text-label cursor-pointer transition-all duration-200 ease-md active:scale-95 hover:shadow-sm focus-within:ring-2 focus-within:ring-md-primary focus-within:ring-offset-2 ${
-                  on ? "bg-md-primary text-md-on-primary" : "bg-md-secondary-container text-md-on-secondary-container"
+                className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-meta font-medium cursor-pointer border transition-all duration-200 ease-md active:scale-95 focus-within:ring-2 focus-within:ring-md-primary focus-within:ring-offset-2 ${
+                  on ? "bg-md-primary text-md-on-primary border-md-primary" : "bg-md-surface-container text-md-on-background border-md-outline hover:bg-md-secondary-container"
                 }`}
               >
                 <input
@@ -453,14 +431,25 @@ function PostForm({
         </div>
       </fieldset>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <Button type="submit" size="lg" disabled={state === "sending"}>
-          <Send className="h-5 w-5" aria-hidden="true" />
-          {state === "sending" ? "Sharing…" : "Share"}
-        </Button>
-        <p role="status" className="text-meta text-md-on-surface-variant">
-          {state === "sent" && !err ? "Thanks — your post is up." : ""}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-meta text-md-on-surface-variant">
+          Posting as <span className="font-medium text-md-on-background">{handle}</span>
+          {med && (
+            <>
+              {" "}
+              about <MedName med={med} brands={false} />
+            </>
+          )}
         </p>
+        <div className="flex items-center gap-3">
+          <p role="status" className="text-meta text-md-on-surface-variant">
+            {state === "sent" && !err ? "Thanks — your post is up." : ""}
+          </p>
+          <Button type="submit" size="sm" disabled={state === "sending"}>
+            <Send className="h-4 w-4" aria-hidden="true" />
+            {state === "sending" ? "Sharing…" : "Share"}
+          </Button>
+        </div>
       </div>
     </form>
   );

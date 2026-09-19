@@ -4,10 +4,11 @@
  * Exits non-zero if any expectation fails.
  */
 import { MemoryDb } from "@/lib/db/memory";
+import { plainifyForSpeech } from "@/lib/glossary";
 import { parseDirectionsHeuristic } from "@/lib/dose/parse";
-import { explainDose } from "@/lib/dose/explain";
-import { g2NoAdvice, g3NumericGrounding, g4Placeholders, restorePlaceholders } from "@/lib/dose/guardrails";
-import type { DoseInput } from "@/lib/types";
+import { explainDose, plainifyDraft, templateRewrite } from "@/lib/dose/explain";
+import { extractNumbers, g2NoAdvice, g3NumericGrounding, g4Placeholders, restorePlaceholders } from "@/lib/dose/guardrails";
+import type { DoseInput, LabelChunk } from "@/lib/types";
 
 const RXCUI: Record<string, string> = { metformin: "6809", ibuprofen: "5640", warfarin: "11289", lisinopril: "29046", acetaminophen: "161", aspirin: "1191" };
 
@@ -35,6 +36,10 @@ async function main() {
     ["1 capsule at bedtime", { unitsPerDose: 1, timesPerDay: 1, unitLabel: "capsule" }],
     ["2 puffs twice daily", { unitsPerDose: 2, timesPerDay: 2, unitLabel: "puff", route: "inhaled" }],
     ["ibuprofen 200 mg, 5 tablets 4 times a day", { drugName: "ibuprofen", strengthMg: 200, unitsPerDose: 5, timesPerDay: 4 }],
+    // Typical scanned pharmacy-label lines (uppercase, salt + form words).
+    ["TAKE 1 TABLET BY MOUTH TWICE DAILY WITH MEALS", { unitsPerDose: 1, timesPerDay: 2, withFood: true, unitLabel: "tablet", route: "oral", drugName: "" }],
+    ["METFORMIN HCL 500 MG TABLET", { drugName: "metformin", strengthMg: 500, unitLabel: "tablet" }],
+    ["METFORMIN HCL 500 MG TABLET\nTAKE 1 TABLET BY MOUTH TWICE DAILY WITH MEALS".replace("\n", ", "), { drugName: "metformin", strengthMg: 500, unitsPerDose: 1, timesPerDay: 2, withFood: true }],
   ];
   for (const [text, want] of cases) {
     const got = parseDirectionsHeuristic(text);
@@ -58,6 +63,25 @@ async function main() {
   const bare = ph.template.replace(/\{\{\d+\}\}/g, "");
   check("G4 placeholders round-trip", restorePlaceholders(ph.template, ph.values) === "Take 1 tablet of metformin, 500 mg, 2 times a day." && !/\d|metformin/.test(bare), ph);
 
+  console.log("\n== Plain language (template path) ==");
+  const plainChunks: LabelChunk[] = [
+    {
+      rxcui: "6809",
+      ingredient_name: "metformin",
+      section: "dosage_and_administration",
+      chunk_id: "test-da-1",
+      text: "The maximum recommended daily dose is 2550 mg in adults; hypoglycemia may occur with concomitant NSAIDs. If a dose is missed, take it PO with the next meal; do not double the dose.",
+    },
+  ];
+  const rawDraft = templateRewrite(metIn, plainChunks, "en");
+  const plainDraft = plainifyDraft(rawDraft);
+  check("plainify swaps 'hypoglycemia' → 'low blood sugar' in maxPerDayLine", /low blood sugar/i.test(plainDraft.maxPerDayLine) && !/hypoglycemia/i.test(plainDraft.maxPerDayLine), plainDraft.maxPerDayLine);
+  check("plainify swaps 'PO' → 'by mouth' in missedDoseLine", /by mouth/.test(plainDraft.missedDoseLine) && !/\bPO\b/.test(plainDraft.missedDoseLine), plainDraft.missedDoseLine);
+  check("plainify adds no digits", extractNumbers(plainDraft.plainDose + plainDraft.maxPerDayLine + plainDraft.missedDoseLine + plainDraft.askYourPharmacist).length === extractNumbers(rawDraft.plainDose + rawDraft.maxPerDayLine + rawDraft.missedDoseLine + rawDraft.askYourPharmacist).length);
+  check("G2 still ok after plainify", g2NoAdvice([plainDraft.plainDose, plainDraft.maxPerDayLine, ...plainDraft.timing, plainDraft.missedDoseLine, plainDraft.askYourPharmacist].join("\n")).ok);
+  const g3plain = g3NumericGrounding(plainDraft, metIn, plainChunks);
+  check("G3 still ok after plainify", g3plain.ok, g3plain.reason);
+
   console.log("\n== Pipeline: metformin demo (expect consistent) ==");
   const met = await explainDose(metIn, "en", { db });
   console.log(JSON.stringify(met, null, 2));
@@ -66,6 +90,8 @@ async function main() {
   check("metformin maxPerDayLine quotes 2550 mg", /2550 mg/.test(met.maxPerDayLine), met.maxPerDayLine);
   check("metformin ceilingChecked", met.ceilingChecked === true);
   check("metformin timing morning/evening", met.timing.join("|") === "morning|evening", met.timing);
+  check("metformin plainDose has no medical terms after plainify", met.plainDose === plainifyForSpeech(met.plainDose) && /\bby mouth\b/.test(met.plainDose), met.plainDose);
+  check("metformin G3 passed after plainify", met.guardrailLog.some((l) => l.startsWith("G3 ok")), met.guardrailLog);
 
   console.log("\n== Pipeline: ibuprofen demo (expect above_label_max, fail closed) ==");
   const ibuIn = parse("ibuprofen 200 mg, 5 tablets 4 times a day");

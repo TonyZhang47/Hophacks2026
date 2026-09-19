@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { TextField } from "@/components/ui/TextField";
 import { useLang } from "@/components/LanguageContext";
+import { medLabel, medLabelText } from "@/components/meds/MedChips";
 import type { Med } from "@/lib/types";
 
 export interface MedSearchProps {
@@ -17,6 +18,8 @@ const DEBOUNCE_MS = 250;
 /**
  * Search-as-you-type over /api/meds/search. Results are a keyboard-navigable listbox
  * (up/down/enter/escape, aria-activedescendant). Selecting adds a med, no duplicates.
+ * Brand names ("advil", "tylenol") resolve through the bundled common-meds list; each
+ * option shows the generic in bold with the brand aliases muted.
  */
 export function MedSearch({ meds, onAdd, max = 10 }: MedSearchProps) {
   const { lang } = useLang();
@@ -37,21 +40,23 @@ export function MedSearch({ meds, onAdd, max = 10 }: MedSearchProps) {
     lang === "es"
       ? {
           label: "Busque un medicamento",
-          placeholder: "Escriba un nombre, por ejemplo metformina o Advil",
-          hint: full ? `Ya tiene ${max} medicamentos, el máximo.` : "Escriba al menos 2 letras. Agregue de 2 a 10 medicamentos.",
+          placeholder: "Nombre o marca, p. ej. metformina o Advil",
+          hint: full ? `Ya tiene ${max} medicamentos, el máximo.` : "Escriba 2 letras o más. Agregue de 2 a 10 medicamentos.",
           none: "No encontramos nada con ese nombre.",
           added: "ya agregado",
           count: (n: number) => (n === 1 ? "1 resultado" : `${n} resultados`),
           searching: "Buscando…",
+          addedMsg: (s: string) => `${s} agregado.`,
         }
       : {
           label: "Search for a medicine",
-          placeholder: "Type a name, for example metformin or Advil",
-          hint: full ? `You have ${max} medicines, the maximum.` : "Type at least 2 letters. Add 2 to 10 medicines.",
+          placeholder: "Name or brand, e.g. metformin or Advil",
+          hint: full ? `You have ${max} medicines, the maximum.` : "Type 2 or more letters. Add 2 to 10 medicines.",
           none: "Nothing found with that name.",
           added: "already added",
           count: (n: number) => (n === 1 ? "1 result" : `${n} results`),
           searching: "Searching…",
+          addedMsg: (s: string) => `${s} added.`,
         };
 
   useEffect(() => {
@@ -101,7 +106,7 @@ export function MedSearch({ meds, onAdd, max = 10 }: MedSearchProps) {
     setResults([]);
     setOpen(false);
     setActive(-1);
-    setAnnounce(lang === "es" ? `${m.name} agregado.` : `${m.name} added.`);
+    setAnnounce(t.addedMsg(medLabelText(m)));
     inputRef.current?.focus();
   };
 
@@ -128,9 +133,14 @@ export function MedSearch({ meds, onAdd, max = 10 }: MedSearchProps) {
 
   return (
     <div className="relative">
+      <Search
+        className="pointer-events-none absolute left-3.5 top-[22px] -translate-y-1/2 h-4 w-4 text-md-on-surface-variant z-10"
+        aria-hidden="true"
+      />
       <TextField
         ref={inputRef}
         label={t.label}
+        hideLabel
         placeholder={t.placeholder}
         hint={t.hint}
         value={q}
@@ -145,8 +155,8 @@ export function MedSearch({ meds, onAdd, max = 10 }: MedSearchProps) {
         aria-controls={listId}
         aria-autocomplete="list"
         aria-activedescendant={open && active >= 0 ? optId(active) : undefined}
+        style={{ paddingLeft: "2.5rem" }}
       />
-      <Search className="pointer-events-none absolute right-4 top-[2.4rem] h-5 w-5 text-md-on-surface-variant" aria-hidden="true" />
 
       <p aria-live="polite" className="sr-only">
         {loading ? t.searching : announce}
@@ -157,16 +167,17 @@ export function MedSearch({ meds, onAdd, max = 10 }: MedSearchProps) {
           id={listId}
           role="listbox"
           aria-label={t.label}
-          className="absolute z-30 mt-2 w-full max-h-80 overflow-auto bg-md-surface-container rounded-3xl shadow-md p-2 list-none"
+          className="panel absolute z-30 top-12 w-full max-h-80 overflow-auto shadow-md p-1.5 list-none"
         >
           {results.length === 0 && (
-            <li className="px-4 py-3 text-body text-md-on-surface-variant" aria-disabled="true">
+            <li className="px-3 py-2.5 text-body text-md-on-surface-variant" aria-disabled="true">
               {loading ? t.searching : t.none}
             </li>
           )}
           {results.map((m, i) => {
             const added = isAdded(m);
             const isActive = i === active;
+            const { generic, brands } = medLabel(m);
             return (
               <li
                 key={m.rxcui}
@@ -174,15 +185,19 @@ export function MedSearch({ meds, onAdd, max = 10 }: MedSearchProps) {
                 role="option"
                 aria-selected={isActive}
                 aria-disabled={added || undefined}
+                aria-label={medLabelText(m)}
                 onMouseDown={(e) => e.preventDefault()}
                 onMouseEnter={() => setActive(i)}
                 onClick={() => choose(m)}
-                className={`flex items-center justify-between gap-3 rounded-full px-4 min-h-11 py-2 text-body cursor-pointer transition-colors duration-200 ease-md ${
-                  isActive ? "bg-md-primary/10" : "hover:bg-md-primary/5"
+                className={`flex items-center justify-between gap-3 rounded-lg px-3 min-h-11 py-2 cursor-pointer transition-colors duration-200 ease-md ${
+                  isActive ? "bg-md-secondary-container" : "hover:bg-md-surface-container-low"
                 } ${added ? "opacity-60 cursor-default" : ""}`}
               >
-                <span>{m.name}</span>
-                {added && <span className="text-meta text-md-on-surface-variant">{t.added}</span>}
+                <span className="min-w-0 truncate">
+                  <span className="text-label text-md-on-background">{generic}</span>
+                  {brands.length > 0 && <span className="text-meta text-md-on-surface-variant"> · {brands.join(", ")}</span>}
+                </span>
+                {added && <span className="shrink-0 text-meta text-md-on-surface-variant">{t.added}</span>}
               </li>
             );
           })}

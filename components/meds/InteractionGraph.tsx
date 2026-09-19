@@ -2,28 +2,29 @@
 
 import { useEffect, useRef } from "react";
 import type { Core } from "cytoscape";
-import { BlurBackdrop } from "@/components/ui/BlurBackdrop";
 import { SeverityChip } from "@/components/ui/SeverityChip";
 import { useLang } from "@/components/LanguageContext";
 import { cardId } from "@/components/meds/InteractionCardList";
+import { shortName } from "@/lib/plainNames";
 import type { InteractionResult, Med, Severity } from "@/lib/types";
 
 /**
  * Raw hex is allowed ONLY here: Cytoscape paints to canvas and cannot read Tailwind classes.
- * These mirror the `sev-*` and `md-*` tokens in tailwind.config.ts. Keep them in sync.
+ * These mirror the `sev-*` and `md-*` tokens in tailwind.config.ts (rev 3). Keep them in sync.
  */
 const SEV_HEX: Record<Severity, string> = {
-  major: "#B3261E", // sev-major
-  moderate: "#7D5260", // sev-moderate
-  minor: "#6750A4", // sev-minor
-  unknown: "#79747E", // sev-unknown
+  major: "#DC2626", // sev-major
+  moderate: "#D97706", // sev-moderate
+  minor: "#2563EB", // sev-minor
+  unknown: "#6B7280", // sev-unknown
 };
-const NODE_BG = "#E8DEF8"; // md-secondary-container
-const NODE_BORDER = "#6750A4"; // md-primary
-const NODE_TEXT = "#1D192B"; // md-on-secondary-container
-const EDGE_TEXT_BG = "#F3EDF7"; // md-surface-container
+const NODE_BG = "#FFFFFF"; // md-surface-container
+const NODE_BORDER = "#C9CCD2"; // md-outline-strong
+const NODE_TEXT = "#111318"; // md-on-background
+const EDGE_TEXT_BG = "#FFFFFF"; // md-surface-container
+const FONT = "var(--font-inter), Inter, system-ui, sans-serif";
 
-const SEV_WIDTH: Record<Severity, number> = { major: 7, moderate: 5, minor: 3, unknown: 2 };
+const SEV_WIDTH: Record<Severity, number> = { major: 5, moderate: 4, minor: 3, unknown: 2 };
 
 const SEV_WORD = {
   en: { major: "major", moderate: "moderate", minor: "minor", unknown: "unknown" } as Record<Severity, string>,
@@ -35,6 +36,10 @@ export interface InteractionGraphProps {
   results: InteractionResult[];
 }
 
+/**
+ * Body of the "Map of your medicines" panel: the Cytoscape canvas (white), an sr-only
+ * edge list, and a severity legend. The panel header is rendered by the workspace.
+ */
 export function InteractionGraph({ meds, results }: InteractionGraphProps) {
   const { lang } = useLang();
   const hostRef = useRef<HTMLDivElement>(null);
@@ -44,8 +49,8 @@ export function InteractionGraph({ meds, results }: InteractionGraphProps) {
   const t =
     lang === "es"
       ? {
-          title: "Mapa de sus medicamentos",
           hint: "Cada línea es una posible interacción. Toque una línea para ir a su tarjeta.",
+          hintNoResults: "Sus medicamentos aparecen aquí. Revíselos para ver las líneas entre ellos.",
           legend: "Leyenda",
           ariaIntro: "Mapa de interacciones.",
           pairs: (n: number) => (n === 1 ? "1 par" : `${n} pares`),
@@ -53,8 +58,8 @@ export function InteractionGraph({ meds, results }: InteractionGraphProps) {
           and: "y",
         }
       : {
-          title: "Map of your medicines",
           hint: "Each line is a possible interaction. Tap a line to jump to its card.",
+          hintNoResults: "Your medicines appear here. Check them to see the lines between them.",
           legend: "Legend",
           ariaIntro: "Interaction map.",
           pairs: (n: number) => (n === 1 ? "1 pair" : `${n} pairs`),
@@ -62,7 +67,7 @@ export function InteractionGraph({ meds, results }: InteractionGraphProps) {
           and: "and",
         };
 
-  const edgeSentences = results.map((r) => `${r.a.name} ${t.and} ${r.b.name}: ${words[r.severity]}`);
+  const edgeSentences = results.map((r) => `${shortName(r.a).generic} ${t.and} ${shortName(r.b).generic}: ${words[r.severity]}`);
   const ariaLabel = `${t.ariaIntro} ${t.pairs(results.length)}. ${edgeSentences.join(". ")}.`;
 
   useEffect(() => {
@@ -77,7 +82,7 @@ export function InteractionGraph({ meds, results }: InteractionGraphProps) {
       const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
       const elements = [
-        ...meds.map((m) => ({ data: { id: m.rxcui, label: m.name } })),
+        ...meds.map((m) => ({ data: { id: m.rxcui, label: shortName(m).generic } })),
         ...results.map((r) => ({
           data: {
             id: `e-${cardId(r.a.rxcui, r.b.rxcui)}`,
@@ -107,11 +112,11 @@ export function InteractionGraph({ meds, results }: InteractionGraphProps) {
             style: {
               "background-color": NODE_BG,
               "border-color": NODE_BORDER,
-              "border-width": 2,
+              "border-width": 1,
               label: "data(label)",
               color: NODE_TEXT,
-              "font-family": "Roboto, system-ui, sans-serif",
-              "font-size": 16,
+              "font-family": FONT,
+              "font-size": 15,
               "font-weight": 500,
               "text-valign": "center",
               "text-halign": "center",
@@ -119,7 +124,7 @@ export function InteractionGraph({ meds, results }: InteractionGraphProps) {
               "text-max-width": "120",
               width: "label",
               height: "label",
-              padding: "14px",
+              padding: "12px",
               shape: "round-rectangle",
             },
           },
@@ -130,13 +135,13 @@ export function InteractionGraph({ meds, results }: InteractionGraphProps) {
               width: "data(width)",
               "curve-style": "bezier",
               label: "data(label)",
-              "font-family": "Roboto, system-ui, sans-serif",
-              "font-size": 15,
+              "font-family": FONT,
+              "font-size": 13,
               "font-weight": 500,
               color: "data(color)",
               "text-background-color": EDGE_TEXT_BG,
               "text-background-opacity": 1,
-              "text-background-padding": "4px",
+              "text-background-padding": "3px",
               "text-background-shape": "roundrectangle",
               "text-rotation": "autorotate",
               "line-style": "solid",
@@ -145,7 +150,7 @@ export function InteractionGraph({ meds, results }: InteractionGraphProps) {
           { selector: "edge[severity = 'unknown']", style: { "line-style": "dashed" } },
           { selector: "edge:active, edge.hover", style: { "overlay-opacity": 0.08 } },
         ],
-        layout: { name: "circle", padding: 40, animate: !reduced, animationDuration: 300 },
+        layout: { name: "circle", padding: 32, animate: !reduced, animationDuration: 300 },
       });
 
       cy.on("mouseover", "edge", (e) => {
@@ -179,7 +184,7 @@ export function InteractionGraph({ meds, results }: InteractionGraphProps) {
   useEffect(() => {
     const onResize = () => {
       cyRef.current?.resize();
-      cyRef.current?.fit(undefined, 40);
+      cyRef.current?.fit(undefined, 32);
     };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
@@ -188,15 +193,11 @@ export function InteractionGraph({ meds, results }: InteractionGraphProps) {
   if (!meds.length) return null;
 
   return (
-    <section aria-labelledby="graph-title" className="space-y-3">
-      <h2 id="graph-title" className="text-title">
-        {t.title}
-      </h2>
-      <p className="text-body text-md-on-surface-variant">{t.hint}</p>
+    <div className="space-y-3">
+      <p className="text-meta text-md-on-surface-variant">{results.length ? t.hint : t.hintNoResults}</p>
 
-      <div className="relative overflow-hidden rounded-3xl sm:rounded-[48px] bg-md-surface-container shadow-sm">
-        <BlurBackdrop variant="hero" />
-        <div ref={hostRef} role="img" aria-label={ariaLabel} className="relative h-[380px] w-full" />
+      <div className="overflow-hidden rounded-lg border border-md-outline bg-md-surface-container">
+        <div ref={hostRef} role="img" aria-label={ariaLabel} className="h-[360px] w-full" />
       </div>
 
       <ul className="sr-only" aria-label={t.list}>
@@ -211,6 +212,6 @@ export function InteractionGraph({ meds, results }: InteractionGraphProps) {
           <SeverityChip key={s} severity={s} />
         ))}
       </div>
-    </section>
+    </div>
   );
 }
