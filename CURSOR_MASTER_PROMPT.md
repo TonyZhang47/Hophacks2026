@@ -1,21 +1,25 @@
-# Master prompt: MedClear (hackathon)
+# Master prompt: RxPlain (hackathon)
 
 Paste everything below the line into Cursor as the initial build instruction.
 
 ---
 
 ## Role
-You are building **MedClear**, a hackathon web product that helps people understand prescription drug interaction risk in plain language, with accessibility (voice + visual graph) and a one-page doctor export. Implement end-to-end vertical slices. Prefer a working demo path over incomplete breadth. Do not invent clinical facts; severity comes from structured data; the LLM only rewrites provided evidence into a fixed schema.
+You are building **RxPlain**, an **accessibility-first** hackathon web product. The core problem is access: people cannot use dense drug-label language. RxPlain turns structured interaction data into plain language, a visual graph, Grok Voice read-aloud, and a one-page doctor PDF. Implement end-to-end vertical slices. Prefer a working demo path over incomplete breadth. Do not invent clinical facts; severity comes from structured data; the LLM only rewrites provided evidence into a fixed schema.
 
 ## Product one-liner
-**MedClear:** User adds 2–10 medications via search. The app cross-checks pairwise interactions, shows severity + plain-English “What happens / How serious / What to do,” visualizes interactions as a graph, reads results aloud with Grok Voice, and exports a one-page PDF for a clinician visit. Use the brand name **MedClear** in the UI (header, PDF title, disclaimer).
+**RxPlain** makes medication interactions accessible in plain language: user adds 2–10 meds via search → pairwise severity from DDInter → plain-language cards → visual graph → Grok Voice read-aloud → PDF for a clinician visit. Brand **RxPlain** in the UI header, PDF title, and disclaimer.
 
-## Non-negotiable safety rules
+**Accessibility is the product**, not a feature add-on. Design for literacy, vision, cognitive load, and appointment advocacy. Pitch and UI copy should lead with access, then show the clinical grounding.
+
+## Non-negotiable safety + accessibility rules
 - Persistent disclaimer: educational only, not medical advice; discuss with a pharmacist/doctor.
 - Never let generative models invent interaction severity. Severity comes from DDInter (cached open data). LLM only rewrites/explains provided evidence.
 - Keep API keys server-side. Never expose `XAI_API_KEY` to the client.
 - Cache lookups; respect openFDA / RxNorm rate limits.
 - Never tell the user to start, stop, or change a medicine.
+- **A11y baseline:** large type, high contrast, keyboard access, visible focus, severity labeled in text (not color-only), semantic headings/buttons, read-aloud as a primary action on results.
+- **Legal:** Ship footer links to Privacy Policy and Terms (`/privacy`, `/terms` pages that render [`PRIVACY.md`](PRIVACY.md) / [`TERMS.md`](TERMS.md) content, or static routes). Short first-run note: educational demo, not medical advice, see Terms.
 
 ## Stack (do not expand without a strong reason)
 - **Frontend:** Next.js (App Router) + TypeScript + Tailwind
@@ -64,10 +68,11 @@ You are building **MedClear**, a hackathon web product that helps people underst
 - Click edge → focus matching card.
 - Built from the same JSON as the cards.
 
-### 5) English read-aloud (Grok Voice)
-- Play on a card and “Read all” for the summary.
+### 5) English read-aloud (Grok Voice) — core accessibility path
+- Play on a card and “Read all” for the summary; place controls where they are obvious (not buried).
 - One optional timed prompt after analysis (e.g. “Found 2 moderate interactions. Tap a red edge to hear more.”) — hard-coded or simple toggle; do not build a settings system for this.
 - No second TTS vendor. No language picker in MVP.
+- Cards use short sentences and everyday words; avoid medical jargon unless immediately explained.
 
 ### 6) Doctor PDF
 - One page from the same JSON: med list, date, flagged pairs, short card text, disclaimer.
@@ -106,7 +111,7 @@ OPENFDA_API_KEY=   # optional but recommended
 Document in README + `.env.example`. Never commit secrets.
 
 ## Build order (follow this)
-1. Scaffold Next.js + Tailwind; MedClear header + disclaimer banner.
+1. Scaffold Next.js + Tailwind; RxPlain header + disclaimer banner; footer links to Privacy + Terms.
 2. RxNorm search UI + med chips.
 3. DDInter load + pairwise check + openFDA evidence.
 4. Grok JSON cards + Cytoscape graph.
@@ -116,12 +121,14 @@ Document in README + `.env.example`. Never commit secrets.
 8. Stretch items only after 1–7 work on Vercel.
 
 ## Acceptance criteria (first demo)
+- Pitch/UI lead with accessibility (plain language, voice, visual, PDF handoff).
 - Add Advil (ibuprofen) + warfarin (or similar) via search.
-- Severity from DDInter; plain-English cards from Grok.
-- Graph with severity-colored edges; click edge → card.
-- English read-aloud via Grok Voice.
+- Severity from DDInter; plain-language cards from Grok.
+- Graph with severity-colored edges **and** text labels; click edge → card.
+- English read-aloud via Grok Voice as a primary control on results.
 - PDF downloads with med list + flagged pairs + disclaimer.
-- README: setup, env vars, Grok-only voice.
+- Keyboard can complete the main path; focus states visible.
+- README: setup, env vars, Grok-only voice, accessibility focus.
 
 ## Out of scope for v1
 - ElevenLabs or any second TTS/STT vendor
@@ -133,10 +140,11 @@ Document in README + `.env.example`. Never commit secrets.
 - Google Calendar OAuth; HIPAA productization; user accounts
 
 ## Deliverables
-1. Runnable Next.js app branded **MedClear**: MVP path against live RxNorm/openFDA + cached DDInter.
+1. Runnable Next.js app branded **RxPlain**: MVP path against live RxNorm/openFDA + cached DDInter.
 2. Modules: `lib/rxnorm.ts`, `lib/openfda.ts`, `lib/ddinter.ts`, `lib/llm.ts`, `lib/tts/grok.ts`, `lib/pdf.ts`.
-3. Short README + `.env.example`.
+3. Short README + `.env.example` + Privacy Policy + Terms.
 4. Seed/demo meds if APIs are slow.
+5. App routes or pages for `/privacy` and `/terms` (footer linked).
 
 Start by scaffolding Next.js, DDInter data load, RxNorm search UI, and the interactions API. Then wire Grok rewrite and the graph. Add Grok Voice only after cards render from real data. PDF next. Stretch last.
 

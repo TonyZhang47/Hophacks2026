@@ -1,19 +1,25 @@
-# MedClear
+# RxPlain
 
-**HopHacks 2026 — Bloomberg track.** Plain-language medication interaction clarity — so people can understand their meds before they talk to a clinician.
+**HopHacks 2026 — Bloomberg track.** Prescription info in **plain language** — an accessibility-first interaction helper that turns dense FDA / label text into something people can see, hear, and take to a clinician.
 
 Built with **Cursor**. Planning assisted by **Grok Bot** (team workflow only — not a runtime API).
 
+**Who it’s for:** people who struggle with medical jargon, vision, literacy, or cognitive load — and anyone who wants a clearer conversation with their pharmacist or doctor.
+
 Someone searches for their meds (2–10) and gets:
 
-- a **plain-English interaction risk summary**
-- a **visual graph** of how those drugs interact
-- **English read-aloud** via Grok Voice
-- a **one-page PDF** to bring to a doctor
+- a **plain-language** interaction risk summary (literacy / cognitive access)
+- a **visual graph** instead of a wall of label text
+- **English read-aloud** via Grok Voice (vision / auditory access)
+- a **one-page PDF** they can bring to an appointment (communication access)
 
 This is an accessibility product, not a replacement for a pharmacist or clinician. Every screen should say: **confirm with a licensed professional before changing how you take any medicine.**
 
+**UI accessibility baseline (MVP):** large readable type, high contrast, keyboard-usable search and actions, visible focus states, severity not conveyed by color alone (include text labels), and a persistent disclaimer. Voice is a core path, not a gimmick.
+
 For the full Cursor build instruction, see [`CURSOR_MASTER_PROMPT.md`](CURSOR_MASTER_PROMPT.md).
+
+**Legal:** [Privacy Policy](PRIVACY.md) · [Terms and Conditions](TERMS.md) — link both in the app footer; include a short consent line on first use (educational demo only).
 
 ---
 
@@ -85,8 +91,8 @@ Grok rewrites **only** provided severity + evidence into:
 
 Health explainer, not prescriber. Never “stop taking X.” Always talk to a clinician/pharmacist.
 
-### 4. Grok Voice read-aloud
-English “Read this card” / “Read all.” Optional one timed prompt after analysis. No language picker and no second TTS vendor in MVP.
+### 4. Grok Voice read-aloud (core access path)
+English “Read this card” / “Read all” as primary actions on results. Optional one timed prompt after analysis. Short sentences; explain jargon. No language picker and no second TTS vendor in MVP.
 
 ### 5. Doctor PDF
 Med list, flagged pairs, short card text, disclaimer. Same JSON as the UI. Print-to-PDF is an acceptable fallback.
@@ -116,7 +122,7 @@ Med list, flagged pairs, short card text, disclaimer. Same JSON as the UI. Print
 
 ## Weekend build order
 
-1. Scaffold Next.js + MedClear header + disclaimer  
+1. Scaffold Next.js + RxPlain header + disclaimer + footer (Privacy / Terms)  
 2. RxNorm search + med list  
 3. DDInter + openFDA + pairwise table  
 4. Grok cards + Cytoscape graph  
@@ -135,6 +141,7 @@ If you finish 1–6, you have the full accessibility story for judges.
 - Do not store prescription photos longer than the request (if you add OCR).
 - Do not collect real patient identifiers. Use sample meds in the recorded demo.
 - Never instruct the user to change how they take a medicine.
+- Full details: [Privacy Policy](PRIVACY.md) and [Terms and Conditions](TERMS.md).
 
 Useful endpoints:
 
@@ -155,11 +162,13 @@ OPENFDA_API_KEY=   # optional but higher rate limit
 
 ## What “done” looks like for judging
 
+Lead the pitch with **accessibility** (plain language + voice + visual + doctor handoff), then show grounding (DDInter / openFDA).
+
 1. Add 3–4 common meds via search (seed pair ready if APIs are slow)  
-2. See a graph with at least one highlighted interaction  
-3. Hear the English summary via Grok Voice  
-4. Download a one-page PDF  
+2. See a graph with text-labeled severity (not color alone)  
+3. Hear the English summary via Grok Voice as a primary action  
+4. Download a one-page PDF for the appointment  
 
 **Stretch beats:** ask a question out loud about the current results; optional Rx photo; optional one other language.
 
-That loop is the product. Everything else is polish.
+That accessibility loop is the product. Everything else is polish.
