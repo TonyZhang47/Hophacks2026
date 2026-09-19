@@ -25,7 +25,7 @@ Implement end-to-end vertical slices. Prefer a working demo path over incomplete
 ## Non-negotiable safety + accessibility rules
 - Persistent disclaimer: educational only, not medical advice; discuss with a pharmacist/doctor.
 - Never let generative models invent interaction severity. Severity comes from DDInter (cached open data). LLM only rewrites/explains provided evidence.
-- Keep API keys server-side. Never expose `XAI_API_KEY` to the client.
+- Keep API keys and **Snowflake credentials** server-side. Never expose `XAI_API_KEY` or Snowflake secrets to the client.
 - Cache lookups; respect openFDA / RxNorm rate limits.
 - Never tell the user to start, stop, or change a medicine.
 - **A11y baseline:** large type, high contrast, keyboard access, visible focus, severity labeled in text (not color-only), semantic headings/buttons, read-aloud as a primary action on results.
@@ -34,17 +34,33 @@ Implement end-to-end vertical slices. Prefer a working demo path over incomplete
 
 ## Stack (do not expand without a strong reason)
 - **Frontend:** Next.js (App Router) + TypeScript + Tailwind
-- **Backend:** Next.js Route Handlers
-- **Drug identity / search:** NLM **RxNorm** REST only (normalize brand → ingredient / RxCUI)
-- **Label evidence:** **openFDA** `drug/label.json` (cache by RxCUI)
-- **Pairwise severity:** **DDInter** CSV cached in the repo (major / moderate / minor / unknown)
-- **Plain-English rewrite:** **xAI Grok** chat with strict JSON output
+- **Backend:** Next.js Route Handlers (**only** place that talks to Snowflake or vendor APIs)
+- **Database:** **Snowflake** — interaction data, lookup caches, optional anonymous demo sessions. Browser never gets Snowflake credentials.
+- **Drug identity / search:** NLM **RxNorm** REST (live); cache hits in Snowflake when possible
+- **Label evidence:** **openFDA** `drug/label.json`; cache snippets in Snowflake by RxCUI
+- **Pairwise severity:** **DDInter** loaded into Snowflake tables (not a giant CSV parse on every request)
+- **Plain-English rewrite:** **xAI Grok** chat with strict JSON output; optionally cache card JSON in Snowflake by pair hash
 - **Voice (all of it):** **xAI Grok Voice** — English read-aloud, optional one timed prompt, optional live Q&A stretch
 - **Interaction graph:** **Cytoscape.js** from the same JSON as the cards (not Imagine)
 - **Share-sheet export:** client or server PDF from structured JSON (`@react-pdf/renderer` or `pdf-lib`) — labeled as a handout, not a medical record
 - **Hosting:** Vercel; secrets in `.env.local` / Vercel env
 
-**Do not use:** ElevenLabs, Scribe, DrugBank as a second severity source, Google Calendar OAuth, auth/DB, dual TTS routers, pronunciation maps, or Grok Imagine in MVP.
+**Do not use:** ElevenLabs, Scribe, DrugBank as a second severity source, Google Calendar OAuth, user auth / real patient DB, dual TTS routers, pronunciation maps, or Grok Imagine in MVP. Do not query Snowflake from the browser.
+
+## Snowflake data model (keep small)
+
+Access Snowflake **only** from server modules (`lib/snowflake.ts`) used by Route Handlers.
+
+| Table | Purpose |
+| --- | --- |
+| `INTERACTIONS` | DDInter pairs: `drug_a`, `drug_b`, `severity`, `mechanism?`, `management?`, `source` |
+| `DRUG_CACHE` | RxNorm/openFDA cache: `rxcui`, `name`, `ingredient_name`, `label_snippets`, `fetched_at` |
+| `CARD_CACHE` | Optional: `pair_hash`, `card_json`, `created_at` (avoid re-calling Grok for same pair) |
+| `DEMO_SESSIONS` | Optional anonymous: `session_id`, `meds_json`, `results_json`, `updated_at` (no real names/PHI) |
+
+Seed `INTERACTIONS` once (script or SQL) from a DDInter snapshot. Prefer warehouse suspend / small warehouse for hackathon cost.
+
+**API rule:** Client → `/api/*` → `lib/snowflake.ts` (SQL) and/or live RxNorm/openFDA/Grok. Never expose connection strings, keys, or raw SQL to the client.
 
 ## MVP feature specs (ship these)
 
@@ -53,9 +69,9 @@ Implement end-to-end vertical slices. Prefer a working demo path over incomplete
 - Store `{ name, rxcui, ingredientName? }` per med.
 
 ### 2) Pairwise interaction engine
-- For every unordered pair: look up DDInter severity; attach openFDA evidence snippets when available.
+- For every unordered pair: query Snowflake `INTERACTIONS` for DDInter severity; attach openFDA evidence (live or `DRUG_CACHE`).
 - Output `InteractionResult[]`: `{ a, b, severity, evidenceSnippets[], sourceIds[] }`.
-- If DDInter has no pair → `severity: "unknown"`. Never hallucinate major.
+- If no row → `severity: "unknown"`. Never hallucinate major.
 
 ### 3) LLM plain-English cards
 - Grok chat: system = health explainer, not prescriber; only use provided evidence.
@@ -100,47 +116,57 @@ Do these in order; skip freely if time is short:
 
 ## Architecture
 ```
-Client (Next.js)
-  → /api/meds/search          (RxNorm)
-  → /api/interactions/check   (DDInter cache + openFDA + Grok rewrite)
+Client (Next.js) — no DB credentials
+  → /api/meds/search          (RxNorm; write-through DRUG_CACHE in Snowflake)
+  → /api/interactions/check   (Snowflake INTERACTIONS + openFDA + Grok rewrite; optional CARD_CACHE)
   → /api/tts                  (Grok Voice)
   → /api/export/pdf           (or client-side PDF from JSON)
+  → /api/sessions  (optional) (anonymous DEMO_SESSIONS in Snowflake)
 
 Stretch:
   → /api/ocr/prescription     (Grok vision)
-  → /api/voice/agent          (Grok Voice Agent over current JSON)
+  → /api/voice/agent          (Grok Voice Agent over current JSON / session)
   → /api/imagine/explainer    (Grok Imagine, optional)
 ```
 
-Demo state: memory or localStorage. No auth/DB.
+All Snowflake access goes through Route Handlers + `lib/snowflake.ts`. No user accounts; no real PHI in `DEMO_SESSIONS`.
 
 ## Env vars
 ```
 XAI_API_KEY=
-OPENFDA_API_KEY=   # optional but recommended
+OPENFDA_API_KEY=              # optional but recommended
+SNOWFLAKE_ACCOUNT=
+SNOWFLAKE_USERNAME=
+SNOWFLAKE_PASSWORD=           # or key-pair / PAT — prefer least privilege
+SNOWFLAKE_WAREHOUSE=
+SNOWFLAKE_DATABASE=
+SNOWFLAKE_SCHEMA=
+SNOWFLAKE_ROLE=               # optional
 ```
 
 Document in README + `.env.example`. Never commit secrets.
 
 ## Build order (follow this)
 1. Scaffold Next.js + Tailwind; RxPlain header + disclaimer banner; footer links to Privacy + Terms.
-2. RxNorm search UI + med chips.
-3. DDInter load + pairwise check + openFDA evidence.
-4. Grok JSON cards + Cytoscape graph.
-5. Grok Voice read-aloud (+ one timed prompt if easy).
-6. Share-sheet PDF export.
-7. Seed demo page (e.g. ibuprofen + warfarin) for judges.
-8. Stretch items only after 1–7 work on Vercel.
+2. `lib/snowflake.ts` connection helper + create/seed `INTERACTIONS` (and empty cache tables).
+3. RxNorm search UI + med chips (`/api/meds/search`, optional cache write).
+4. Pairwise check via Snowflake + openFDA evidence (`/api/interactions/check`).
+5. Grok JSON cards + Cytoscape graph (optional `CARD_CACHE`).
+6. Grok Voice read-aloud (+ one timed prompt if easy).
+7. Share-sheet PDF export.
+8. Seed demo page (e.g. ibuprofen + warfarin) for judges; deploy to Vercel with Snowflake env vars.
+9. Stretch items only after 1–8 work.
 
 ## Acceptance criteria (first demo)
 - Pitch/UI lead with **philanthropy**: who is excluded → free plain language / voice / visual / share sheet. Do not pitch as a healthcare app.
 - Add Advil (ibuprofen) + warfarin (or similar) via search.
-- Severity from DDInter; plain-language cards from Grok.
+- Severity from Snowflake-backed DDInter; plain-language cards from Grok.
 - Graph with severity-colored edges **and** text labels; click edge → card.
 - English read-aloud via Grok Voice as a primary control on results.
 - Share-sheet PDF downloads with med list + flagged pairs + disclaimer.
 - Keyboard can complete the main path; focus states visible.
-- README: setup, env vars, Grok-only voice, philanthropy + accessibility focus.
+- Interaction lookups go through `/api/*` → Snowflake (not client-side DB).
+- README: setup, env vars, Snowflake + Grok-only voice, philanthropy + accessibility focus.
 
 ## Out of scope for v1
 - ElevenLabs or any second TTS/STT vendor
@@ -149,15 +175,17 @@ Document in README + `.env.example`. Never commit secrets.
 - Live Voice Agent before MVP works
 - Imagine-driven graphs or invented interactions
 - Clinical decision support claims; Healthcare-track positioning; replacing clinicians
-- Google Calendar OAuth; HIPAA productization; user accounts
+- Google Calendar OAuth; HIPAA productization; user accounts / login
+- Client-side Snowflake drivers or exposing warehouse credentials
+- Storing real patient identifiers in Snowflake
 
 ## Deliverables
-1. Runnable Next.js app branded **RxPlain**: MVP path against live RxNorm/openFDA + cached DDInter.
-2. Modules: `lib/rxnorm.ts`, `lib/openfda.ts`, `lib/ddinter.ts`, `lib/llm.ts`, `lib/tts/grok.ts`, `lib/pdf.ts`.
-3. Short README + `.env.example` + Privacy Policy + Terms.
+1. Runnable Next.js app branded **RxPlain**: MVP path against live RxNorm/openFDA + Snowflake-hosted DDInter.
+2. Modules: `lib/snowflake.ts`, `lib/rxnorm.ts`, `lib/openfda.ts`, `lib/interactions.ts`, `lib/llm.ts`, `lib/tts/grok.ts`, `lib/pdf.ts`.
+3. Short README + `.env.example` + Privacy Policy + Terms + SQL seed for `INTERACTIONS`.
 4. Seed/demo meds if APIs are slow.
 5. App routes or pages for `/privacy` and `/terms` (footer linked).
 
-Start by scaffolding Next.js, DDInter data load, RxNorm search UI, and the interactions API. Then wire Grok rewrite and the graph. Add Grok Voice only after cards render from real data. PDF next. Stretch last.
+Start by scaffolding Next.js, Snowflake connection + seeded `INTERACTIONS`, RxNorm search UI, and the interactions API. Then wire Grok rewrite and the graph. Add Grok Voice only after cards render from real data. PDF next. Stretch last.
 
 When uncertain, choose the path that preserves medical grounding and ships a demoable vertical slice.

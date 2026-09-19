@@ -20,10 +20,10 @@ RxPlain lets you search medications, view plain-language summaries grounded in p
 
 ### Information processed automatically
 - Basic technical logs needed to run the demo (e.g. request errors, rate-limit handling)
-- We do not intentionally collect device advertising IDs, precise location, or contact lists
+- Server-side caches in **Snowflake** (drug lookup cache, interaction rows, optional anonymous session JSON) — no advertising IDs, precise location, or contact lists
 
 ### Sensitive health information
-Medication lists can imply health status. Treat anything you enter as **sensitive**. Prefer sample or fictional meds during demos. Do not enter real patient identifiers (full legal name, MRN, address, phone, SSN, insurance ID).
+Medication lists can imply health status. Treat anything you enter as **sensitive**. Prefer sample or fictional meds during demos. Do not enter real patient identifiers (full legal name, MRN, address, phone, SSN, insurance ID). Do not store those identifiers in Snowflake.
 
 ## 4. How we use information
 - To look up drug names and interaction evidence (RxNorm, openFDA, DDInter)
@@ -40,16 +40,18 @@ RxPlain sends necessary request data to third parties to function:
 | --- | --- |
 | NLM RxNorm | Drug name search / normalization |
 | openFDA | Label evidence snippets |
+| Snowflake | Server-side interaction store + caches (credentials never in the browser) |
 | xAI (Grok) | Plain-language rewrite, voice, optional vision/Imagine |
 | Hosting (e.g. Vercel) | App hosting |
 
 Those providers process data under their own terms and policies. Do not submit information you are not comfortable sharing with those services.
 
 ## 6. Storage and retention
-- Hackathon default: session/local state (e.g. in-memory or browser localStorage). No long-term user accounts.
+- Hackathon default: anonymous or local UI state plus optional Snowflake caches/sessions without login.
 - Prescription photos (if enabled): process for the request only; do not store longer than needed unless you explicitly opt in to save (default: do not save).
+- Snowflake: interaction seed data and caches; purge demo session rows after the event when practical.
 - Server logs: keep only as long as needed for debugging during the event, then discard.
-- We do not operate a production patient database.
+- We do not operate a production patient database or user accounts.
 
 ## 7. Children
 RxPlain is not directed at children under 13. Do not use it to manage a minor’s real prescriptions as a clinical tool.
