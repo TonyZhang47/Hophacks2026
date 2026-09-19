@@ -3,7 +3,7 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { genericFor } from "@/lib/plainNames";
-import commonMeds from "@/data/common_meds.json";
+import { filterCommon, mergeLive, GENERIC_OPTIONS } from "@/lib/medOptions";
 import { Search } from "lucide-react";
 import { TextField } from "@/components/ui/TextField";
 import { useLang } from "@/components/LanguageContext";
@@ -17,22 +17,24 @@ export interface MedSearchProps {
 }
 
 const DEBOUNCE_MS = 250;
+const LIVE_MIN_CHARS = 3;
+const LIVE_WHEN_FEWER_THAN = 3;
 
 /**
- * Search-as-you-type over /api/meds/search. Results are a keyboard-navigable listbox
- * (up/down/enter/escape, aria-activedescendant). Selecting adds a med, no duplicates.
- * Brand names ("advil", "tylenol") resolve through the bundled common-meds list; each
- * option shows the generic in bold with the brand aliases muted.
+ * Medicine picker. Clicking the field opens the full, scrollable list; typing filters it
+ * instantly (generic or brand name), and a live RxNorm lookup fills in anything the
+ * bundled list does not know. Keyboard: up/down/enter/escape, aria-activedescendant.
  */
 export function MedSearch({ meds, onAdd, max = 10 }: MedSearchProps) {
   const { lang } = useLang();
   const [q, setQ] = useState("");
-  const [results, setResults] = useState<Med[]>([]);
+  const [results, setResults] = useState<Med[]>(GENERIC_OPTIONS);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const [loading, setLoading] = useState(false);
   const [announce, setAnnounce] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const baseId = useId();
   const listId = `${baseId}-list`;
@@ -46,32 +48,39 @@ export function MedSearch({ meds, onAdd, max = 10 }: MedSearchProps) {
           placeholder: "Nombre o marca, p. ej. metformina o Advil",
           hint: full
             ? `Ya tiene ${max} medicamentos, el máximo.`
-            : "Escriba 2 letras o más. Agregue de 1 a 10 medicamentos.",
+            : "Haga clic para ver la lista, o escriba para filtrar. Agregue de 1 a 10 medicamentos.",
           none: "No encontramos nada con ese nombre.",
           added: "ya agregado",
           count: (n: number) => (n === 1 ? "1 resultado" : `${n} resultados`),
           searching: "Buscando…",
           addedMsg: (s: string) => `${s} agregado.`,
+          addTyped: "Agregar nombre escrito",
+          unrecognized: "Los nombres sin verificar se marcan como desconocidos.",
         }
       : {
           label: "Search for a medicine",
           placeholder: "Name or brand, e.g. metformin or Advil",
           hint: full
             ? `You have ${max} medicines, the maximum.`
-            : "Type 2 or more letters. Add 1 to 10 medicines.",
+            : "Click to browse the list, or type to filter. Add 1 to 10 medicines.",
           none: "Nothing found with that name.",
           added: "already added",
           count: (n: number) => (n === 1 ? "1 result" : `${n} results`),
           searching: "Searching…",
           addedMsg: (s: string) => `${s} added.`,
+          addTyped: "Add typed name",
+          unrecognized: "Unrecognized names will be marked unknown.",
         };
 
+  // Local filter is instant; the live lookup only runs when the bundled list is thin.
   useEffect(() => {
     const query = q.trim();
     abortRef.current?.abort();
-    if (query.length < 2) {
-      setResults([]);
-      setOpen(false);
+    const local = filterCommon(query);
+    setResults(local);
+    setActive(local.length ? 0 : -1);
+    setAnnounce(local.length ? t.count(local.length) : t.none);
+    if (query.length < LIVE_MIN_CHARS || local.length >= LIVE_WHEN_FEWER_THAN) {
       setLoading(false);
       return;
     }
@@ -80,24 +89,15 @@ export function MedSearch({ meds, onAdd, max = 10 }: MedSearchProps) {
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
-        const res = await fetch(
-          `/api/meds/search?q=${encodeURIComponent(query)}`,
-          { signal: ctrl.signal },
-        );
+        const res = await fetch(`/api/meds/search?q=${encodeURIComponent(query)}`, { signal: ctrl.signal });
         if (!res.ok) throw new Error(String(res.status));
         const data = (await res.json()) as { results: Med[] };
-        setResults(data.results);
-        setOpen(true);
-        setActive(data.results.length ? 0 : -1);
-        setAnnounce(
-          data.results.length ? t.count(data.results.length) : t.none,
-        );
+        const merged = mergeLive(local, data.results);
+        setResults(merged);
+        setActive(merged.length ? 0 : -1);
+        setAnnounce(merged.length ? t.count(merged.length) : t.none);
       } catch (err) {
-        if ((err as Error).name !== "AbortError") {
-          setResults([]);
-          setOpen(true);
-          setAnnounce(t.none);
-        }
+        if ((err as Error).name !== "AbortError") setAnnounce(local.length ? t.count(local.length) : t.none);
       } finally {
         if (!ctrl.signal.aborted) setLoading(false);
       }
@@ -109,13 +109,19 @@ export function MedSearch({ meds, onAdd, max = 10 }: MedSearchProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [q]);
 
+  // Keep the active option in view while arrowing through a long list.
+  useEffect(() => {
+    if (!open || active < 0) return;
+    document.getElementById(optId(active))?.scrollIntoView({ block: "nearest" });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, open]);
+
   const isAdded = (m: Med) => meds.some((x) => x.rxcui === m.rxcui);
 
   const choose = (m: Med) => {
     if (full || isAdded(m)) return;
     onAdd(m);
     setQ("");
-    setResults([]);
     setOpen(false);
     setActive(-1);
     setAnnounce(t.addedMsg(medLabelText(m)));
@@ -123,10 +129,18 @@ export function MedSearch({ meds, onAdd, max = 10 }: MedSearchProps) {
   };
 
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!open || !results.length) {
-      if (e.key === "Escape") setOpen(false);
+    if (e.key === "Escape") {
+      setOpen(false);
       return;
     }
+    if (!open) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setOpen(true);
+      }
+      return;
+    }
+    if (!results.length) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setActive((i) => (i + 1) % results.length);
@@ -138,8 +152,6 @@ export function MedSearch({ meds, onAdd, max = 10 }: MedSearchProps) {
         e.preventDefault();
         choose(results[active]);
       }
-    } else if (e.key === "Escape") {
-      setOpen(false);
     }
   };
 
@@ -157,9 +169,13 @@ export function MedSearch({ meds, onAdd, max = 10 }: MedSearchProps) {
         hint={t.hint}
         value={q}
         disabled={full}
-        onChange={(e) => setQ(e.target.value)}
+        onChange={(e) => {
+          setQ(e.target.value);
+          setOpen(true);
+        }}
         onKeyDown={onKeyDown}
-        onFocus={() => results.length && setOpen(true)}
+        onFocus={() => setOpen(true)}
+        onClick={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         autoComplete="off"
         role="combobox"
@@ -178,50 +194,36 @@ export function MedSearch({ meds, onAdd, max = 10 }: MedSearchProps) {
         onClick={() => {
           const name = q.trim().slice(0, 80);
           const generic = genericFor(name) || name.toLowerCase();
-          const known = (commonMeds as Med[]).find(
-            (m) =>
-              m.name.toLowerCase() === name.toLowerCase() ||
-              m.ingredientName === generic,
+          const known = GENERIC_OPTIONS.find(
+            (m) => m.name.toLowerCase() === name.toLowerCase() || m.ingredientName === generic,
           );
-          choose(
-            known || {
-              name,
-              rxcui: `manual:${name.toLowerCase()}`,
-              ingredientName: generic,
-            },
-          );
+          choose(known || { name, rxcui: `manual:${name.toLowerCase()}`, ingredientName: generic });
         }}
       >
-        {lang === "es" ? "Agregar nombre escrito" : "Add typed name"}
+        {t.addTyped}
       </Button>
-      <p className="text-meta text-md-on-surface-variant mt-1">
-        {lang === "es"
-          ? "Los nombres sin verificar se marcan como desconocidos."
-          : "Unrecognized names will be marked unknown."}
-      </p>
+      <p className="text-meta text-md-on-surface-variant mt-1">{t.unrecognized}</p>
       <p aria-live="polite" className="sr-only">
         {loading ? t.searching : announce}
       </p>
 
-      {open && (
+      {open && !full && (
         <ul
           id={listId}
+          ref={listRef}
           role="listbox"
           aria-label={t.label}
-          className="panel absolute z-30 top-12 w-full max-h-80 overflow-auto shadow-md p-1.5 list-none"
+          className="panel absolute z-30 top-12 w-full max-h-72 overflow-y-auto overscroll-contain shadow-md p-1.5 list-none"
         >
           {results.length === 0 && (
-            <li
-              className="px-3 py-2.5 text-body text-md-on-surface-variant"
-              aria-disabled="true"
-            >
+            <li className="px-3 py-2.5 text-body text-md-on-surface-variant" aria-disabled="true">
               {loading ? t.searching : t.none}
             </li>
           )}
           {results.map((m, i) => {
             const added = isAdded(m);
             const isActive = i === active;
-            const { generic, brands } = medLabel(m);
+            const { generic } = medLabel(m);
             return (
               <li
                 key={`${m.rxcui}-${i}`}
@@ -233,31 +235,20 @@ export function MedSearch({ meds, onAdd, max = 10 }: MedSearchProps) {
                 onMouseDown={(e) => e.preventDefault()}
                 onMouseEnter={() => setActive(i)}
                 onClick={() => choose(m)}
-                className={`flex items-center justify-between gap-3 rounded-lg px-3 min-h-11 py-2 cursor-pointer transition-colors duration-200 ease-md ${
-                  isActive
-                    ? "bg-md-secondary-container"
-                    : "hover:bg-md-surface-container-low"
+                className={`flex items-center justify-between gap-3 rounded-lg px-3 min-h-10 py-1.5 cursor-pointer transition-colors duration-200 ease-md ${
+                  isActive ? "bg-md-secondary-container" : "hover:bg-md-surface-container-low"
                 } ${added ? "opacity-60 cursor-default" : ""}`}
               >
-                <span className="min-w-0 truncate">
-                  <span className="text-label text-md-on-background">
-                    {generic}
-                  </span>
-                  {brands.length > 0 && (
-                    <span className="text-meta text-md-on-surface-variant">
-                      {" "}
-                      · {brands.join(", ")}
-                    </span>
-                  )}
-                </span>
-                {added && (
-                  <span className="shrink-0 text-meta text-md-on-surface-variant">
-                    {t.added}
-                  </span>
-                )}
+                <span className="min-w-0 truncate text-label text-md-on-background">{generic}</span>
+                {added && <span className="shrink-0 text-meta text-md-on-surface-variant">{t.added}</span>}
               </li>
             );
           })}
+          {loading && results.length > 0 && (
+            <li className="px-3 py-2 text-meta text-md-on-surface-variant" aria-disabled="true">
+              {t.searching}
+            </li>
+          )}
         </ul>
       )}
     </div>

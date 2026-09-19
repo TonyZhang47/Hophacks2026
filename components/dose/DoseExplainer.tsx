@@ -24,7 +24,6 @@ export interface DoseExplainerProps {
 
 type Phase = "idle" | "parsing" | "confirm" | "checking" | "done";
 
-const EXAMPLES = ["metformin 500 mg, 1 tablet twice a day with meals", "ibuprofen 200 mg, 5 tablets 4 times a day"];
 const OTHER = "__other__";
 const MAX_DIRECTIONS = 500;
 
@@ -78,6 +77,9 @@ const T = {
       "Saved only in this browser. This is a log of the times you choose — not a reminder or a recommended schedule.",
     calendarMedicine: "Calendar medicine name",
     calendarTimes: "Times",
+    addTime: "Add a time",
+    removeTime: "Remove time",
+    slotsHint: (n: number) => `${n} time${n === 1 ? "" : "s"} a day from your directions — adjust as needed.`,
     calendarRepeat: "Repeat daily until",
     calendarRepeatHint: "Leave as today for a single day.",
     calendarNote: "Optional note",
@@ -133,6 +135,9 @@ const T = {
       "Se guarda solo en este navegador. Es un registro de los horarios que elija, no un recordatorio ni una pauta de dosis.",
     calendarMedicine: "Nombre en el calendario",
     calendarTimes: "Horarios",
+    addTime: "Agregar horario",
+    removeTime: "Quitar horario",
+    slotsHint: (n: number) => `${n} ${n === 1 ? "vez" : "veces"} al día según sus indicaciones — ajuste si hace falta.`,
     calendarRepeat: "Repetir a diario hasta",
     calendarRepeatHint: "Deje la fecha de hoy para un solo día.",
     calendarNote: "Nota opcional",
@@ -416,22 +421,6 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
                 autoComplete="off"
                 maxLength={MAX_DIRECTIONS}
               />
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-meta text-md-on-surface-variant">{t.tryOne}</span>
-                {EXAMPLES.map((ex) => (
-                  <Chip
-                    key={ex}
-                    selected={text === ex}
-                    onClick={() => {
-                      setText(ex);
-                      if (hasPicker) setMedChoice(OTHER);
-                      setOtherName("");
-                    }}
-                  >
-                    {ex}
-                  </Chip>
-                ))}
-              </div>
               <Button type="submit" size="md" disabled={busy || !text.trim()}>
                 {phase === "parsing" ? t.reading : t.readBack}
               </Button>
@@ -485,17 +474,44 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
                 />
                 <div className="grid grid-cols-2 gap-3">
                   {calTimes.map((time, i) => (
-                    <TextField
-                      key={i}
-                      label={`${t.calendarTimes} ${i + 1}`}
-                      type="time"
-                      value={time}
-                      onChange={(e) =>
-                        setCalTimes((prev) => prev.map((x, j) => (j === i ? e.target.value : x)))
-                      }
-                      required
-                    />
+                    <div key={i} className="flex items-end gap-1">
+                      <TextField
+                        className="flex-1"
+                        label={`${t.calendarTimes} ${i + 1}`}
+                        type="time"
+                        value={time}
+                        onChange={(e) =>
+                          setCalTimes((prev) => prev.map((x, j) => (j === i ? e.target.value : x)))
+                        }
+                        required
+                      />
+                      {calTimes.length > 1 && (
+                        <Button
+                          variant="text"
+                          size="sm"
+                          className="h-11 !px-2"
+                          aria-label={`${t.removeTime} ${i + 1}`}
+                          onClick={() => setCalTimes((prev) => prev.filter((_, j) => j !== i))}
+                          disabled={busy}
+                        >
+                          ×
+                        </Button>
+                      )}
+                    </div>
                   ))}
+                </div>
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-meta text-md-on-surface-variant">
+                    {input?.timesPerDay ? t.slotsHint(input.timesPerDay) : ""}
+                  </p>
+                  <Button
+                    variant="text"
+                    size="sm"
+                    onClick={() => setCalTimes((prev) => (prev.length >= 12 ? prev : [...prev, "12:00"]))}
+                    disabled={busy || calTimes.length >= 12}
+                  >
+                    + {t.addTime}
+                  </Button>
                 </div>
                 <TextField
                   label={t.calendarRepeat}

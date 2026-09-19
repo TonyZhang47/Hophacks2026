@@ -38,18 +38,22 @@ export function genericFor(name: string): string | null {
   return brandToGeneric.get(name.toLowerCase().trim()) ?? null;
 }
 
-/** "ibuprofen (also sold as Advil, Motrin)" — for chips, cards, confirmation screens. */
+/** Display name = the generic only ("Ibuprofen"). Brands are searchable but never appended (team decision). */
 export function displayName(med: Pick<Med, "name" | "rxcui" | "ingredientName">): string {
-  const generic = med.ingredientName || byRxcui.get(med.rxcui)?.generic || med.name;
-  const brands = brandNamesFor(med.rxcui).filter((b) => b.toLowerCase() !== generic.toLowerCase());
-  const g = capitalize(generic);
-  return brands.length ? `${g} (also sold as ${brands.slice(0, 3).join(", ")})` : g;
+  return capitalize(genericNameOf(med));
 }
 
-/** Short form for tight spaces: "Ibuprofen · Advil, Motrin". */
+/** Short form: generic only; `brands` is kept in the shape for callers but is always empty now. */
 export function shortName(med: Pick<Med, "name" | "rxcui" | "ingredientName">): { generic: string; brands: string[] } {
-  const generic = capitalize(med.ingredientName || byRxcui.get(med.rxcui)?.generic || med.name);
-  return { generic, brands: brandNamesFor(med.rxcui).slice(0, 3) };
+  return { generic: capitalize(genericNameOf(med)), brands: [] };
+}
+
+function genericNameOf(med: Pick<Med, "name" | "rxcui" | "ingredientName">): string {
+  if (med.ingredientName) return med.ingredientName;
+  const known = byRxcui.get(med.rxcui)?.generic;
+  if (known) return known;
+  const m = med.name.match(/^(.+?)\s*\((.+)\)$/); // "Advil (ibuprofen)" from live RxNorm
+  return m ? m[2].trim() : med.name;
 }
 
 export function capitalize(s: string) {

@@ -15,7 +15,7 @@ export function medLabel(med: Med): { generic: string; brands: string[] } {
   const s = shortName(med);
   if (s.brands.length) return s;
   const m = med.name.match(/^(.+?)\s*\((.+)\)$/);
-  if (m) return { generic: capitalize(med.ingredientName || m[2].trim()), brands: [m[1].trim()] };
+  if (m) return { generic: capitalize(med.ingredientName || m[2].trim()), brands: [] };
   return { generic: s.generic, brands: [] };
 }
 

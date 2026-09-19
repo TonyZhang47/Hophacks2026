@@ -4,11 +4,13 @@ import {
   useCallback,
   useEffect,
   useId,
+  useMemo,
   useState,
   useRef,
   type FormEvent,
 } from "react";
 import { MedicinePicker } from "@/components/community/MedicinePicker";
+import { useTranslated } from "@/components/community/useTranslated";
 import { useLang, type Lang } from "@/components/LanguageContext";
 import { Send } from "lucide-react";
 import commonMeds from "@/data/common_meds.json";
@@ -58,32 +60,20 @@ const MED_OPTIONS: { withPosts: Med[]; others: Med[] } = {
 const findMed = (rxcui: string) =>
   ALL_MEDS.find((m) => m.rxcui === rxcui) ?? null;
 
-/** "Ibuprofen (Advil, Motrin)" for <option> text, where styling isn't possible. */
+/** Generic name only for <option> text (brand search still works through the picker). */
 function optionLabel(m: Med) {
-  const s = shortName(m);
-  return s.brands.length ? `${s.generic} (${s.brands.join(", ")})` : s.generic;
+  return shortName(m).generic;
 }
 
-/** Generic capitalized, brand aliases muted. */
+/** Generic name, capitalized. Brand aliases are never shown on this page. */
 function MedName({
   med,
-  brands = true,
 }: {
   med: Pick<Med, "name" | "rxcui" | "ingredientName">;
+  /** Kept for callers; brands are no longer rendered. */
   brands?: boolean;
 }) {
-  const s = shortName(med);
-  return (
-    <>
-      <span>{s.generic}</span>
-      {brands && s.brands.length > 0 && (
-        <span className="text-md-on-surface-variant font-normal">
-          {" "}
-          · {s.brands.join(", ")}
-        </span>
-      )}
-    </>
-  );
+  return <span>{shortName(med).generic}</span>;
 }
 
 const ADJECTIVES = [
@@ -255,6 +245,9 @@ const T = {
       `Post ${i}, about ${drug}, ${when}: ${body}`,
     notAdvice: "These are other people's experiences, not medical advice.",
     panel: "Medication talk",
+    seeOriginal: "See original",
+    seeTranslation: "See translation",
+    autoTranslated: "Automatic translation. It may contain errors — see the original if in doubt.",
   },
   es: {
     title: "Conversación sobre medicamentos",
@@ -313,6 +306,9 @@ const T = {
       `Publicación ${i}, sobre ${drug}, ${when}: ${body}`,
     notAdvice: "Estas son experiencias de otras personas, no consejos médicos.",
     panel: "Conversación sobre medicamentos",
+    seeOriginal: "Ver original",
+    seeTranslation: "Ver traducción",
+    autoTranslated: "Traducción automática. Puede contener errores — vea el original si tiene dudas.",
   },
 } as const;
 
@@ -328,11 +324,15 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
   const [officialHasMore, setOfficialHasMore] = useState(false);
   const [labelExpanded, setLabelExpanded] = useState(false);
   const [summary, setSummary] = useState<string | null>(null);
+  /** Language the summary was generated in (the API already honours `lang`). */
+  const [summaryLang, setSummaryLang] = useState<Lang>("en");
   const [summarizing, setSummarizing] = useState(false);
   const [summaryError, setSummaryError] = useState("");
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  /** Item ids ("label", "summary", "post:<id>") the reader flipped back to the English original. */
+  const [showOriginal, setShowOriginal] = useState<Set<string>>(() => new Set());
   const ids = useId();
   const requestVersion = useRef(0);
 
@@ -432,10 +432,49 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
   const visibleOfficial =
     (labelExpanded && officialFull ? officialFull : official) || null;
 
+  // --- Spanish view of dynamic English content (posts, label text, summary) ---
+  const es = lang === "es";
+  // A summary requested while in Spanish is already Spanish; only translate an English one.
+  const summaryNeedsTr = !!summary && summaryLang === "en";
+  const trStrings = useMemo(() => {
+    if (!es) return [];
+    const out: string[] = [];
+    if (official) out.push(official);
+    if (officialFull && officialFull !== official) out.push(officialFull);
+    if (summaryNeedsTr && summary) out.push(summary);
+    for (const p of posts) out.push(p.body);
+    return out;
+  }, [es, official, officialFull, summary, summaryNeedsTr, posts]);
+  const { get: tr } = useTranslated(trStrings, es);
+
+  /**
+   * What to show for one item: the Spanish translation when we have one and the reader has
+   * not asked for the original; otherwise the English text (also while a translation is pending).
+   */
+  const view = (id: string, text: string) => {
+    const translated = es ? tr(text) : undefined;
+    const original = !translated || showOriginal.has(id);
+    return {
+      text: original ? text : translated,
+      hasTranslation: !!translated,
+      /** True when the displayed text is the English source (glossary applies). */
+      isEnglish: original,
+    };
+  };
+  const toggleOriginal = (id: string) =>
+    setShowOriginal((cur) => {
+      const next = new Set(cur);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const labelView = visibleOfficial ? view("label", visibleOfficial) : null;
+  const summaryView = summary ? view("summary", summary) : null;
+
   const listenText = () => {
     const scope = selectedGeneric ? t.forMed(selectedGeneric) : t.forAll;
-    const officialLine = visibleOfficial
-      ? `${t.officialFor(selectedGeneric || t.thisMed)} ${visibleOfficial}`
+    const officialLine = labelView
+      ? `${t.officialFor(selectedGeneric || t.thisMed)} ${labelView.text}`
       : selectedMed
         ? t.noLabelYet
         : t.pickMed;
@@ -455,7 +494,7 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
           i + 1,
           shortName({ name: p.drug_name, rxcui: p.rxcui ?? "", ingredientName: p.drug_name }).generic,
           relativeTime(p.created_at, lang),
-          p.body,
+          view(`post:${p.post_id}`, p.body).text,
         ),
       );
     return [officialLine, termLine, ...postLines, t.notAdvice].join(" ");
@@ -488,6 +527,7 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
         return;
       }
       setSummary(data.summary.trim());
+      setSummaryLang(lang);
     } catch {
       setSummaryError(t.summarizeError);
     } finally {
@@ -578,9 +618,9 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
               <h3 id={`${ids}-label-h`} className="eyebrow">
                 {t.fromLabel}
               </h3>
-              {visibleOfficial && (
+              {labelView && (
                 <ListenButton
-                  text={`${t.officialFor(selectedGeneric || t.thisMed)} ${visibleOfficial}`}
+                  text={`${t.officialFor(selectedGeneric || t.thisMed)} ${labelView.text}`}
                   label={t.listenLabel}
                   size="sm"
                   variant="outlined"
@@ -589,12 +629,15 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
             </div>
             {loading ? (
               <p className="text-meta text-md-on-surface-variant">{t.loading}</p>
-            ) : visibleOfficial ? (
+            ) : labelView ? (
               <>
                 <p className="text-meta text-md-on-surface-variant">
                   {t.officialFor(selectedGeneric || t.thisMed)}
                 </p>
-                <p className="text-body text-md-on-background">{visibleOfficial}</p>
+                <p className="text-body text-md-on-background">{labelView.text}</p>
+                {labelView.hasTranslation && !labelView.isEnglish && (
+                  <p className="text-meta text-md-on-surface-variant">{t.autoTranslated}</p>
+                )}
                 <div className="flex flex-wrap items-center gap-3">
                   {officialHasMore && (
                     <button
@@ -613,11 +656,33 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
                   >
                     {summarizing ? t.summarizing : t.summarizeNow}
                   </button>
+                  {labelView.hasTranslation && (
+                    <Button
+                      variant="text"
+                      size="sm"
+                      onClick={() => toggleOriginal("label")}
+                      aria-pressed={labelView.isEnglish}
+                      className="-mx-2 text-md-tertiary"
+                    >
+                      {labelView.isEnglish ? t.seeTranslation : t.seeOriginal}
+                    </Button>
+                  )}
                 </div>
-                {summary && (
+                {summaryView && (
                   <div className="rounded-lg border border-md-outline bg-md-surface-container px-3 py-2 space-y-1.5">
-                    <p className="text-body text-md-on-background">{summary}</p>
+                    <p className="text-body text-md-on-background">{summaryView.text}</p>
                     <p className="text-meta text-md-on-surface-variant">{t.aiDisclaimer}</p>
+                    {summaryView.hasTranslation && (
+                      <Button
+                        variant="text"
+                        size="sm"
+                        onClick={() => toggleOriginal("summary")}
+                        aria-pressed={summaryView.isEnglish}
+                        className="-mx-2 text-md-tertiary"
+                      >
+                        {summaryView.isEnglish ? t.seeTranslation : t.seeOriginal}
+                      </Button>
+                    )}
                   </div>
                 )}
                 {summaryError && (
@@ -669,9 +734,15 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
               {t.noPosts}
             </p>
           )}
+          {es && posts.some((p) => !!tr(p.body)) && (
+            <p className="text-meta text-md-on-surface-variant">{t.autoTranslated}</p>
+          )}
           {posts.length > 0 && (
             <ul className="space-y-3 list-none p-0 m-0">
-              {posts.map((p) => (
+              {posts.map((p) => {
+                const id = `post:${p.post_id}`;
+                const pv = view(id, p.body);
+                return (
                 <Card as="li" key={p.post_id} dense className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2 text-meta text-md-on-surface-variant">
                     <Chip asSpan className="h-7 px-2.5">
@@ -691,7 +762,11 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
                       {relativeTime(p.created_at, lang)}
                     </time>
                   </div>
-                  <PlainText as="p" text={p.body} className="text-body" />
+                  {pv.isEnglish ? (
+                    <PlainText as="p" text={pv.text} className="text-body" />
+                  ) : (
+                    <p className="text-body">{pv.text}</p>
+                  )}
                   {p.side_effect_tags.length > 0 && (
                     <ul
                       className="flex flex-wrap gap-2 list-none p-0 m-0"
@@ -709,8 +784,20 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
                       ))}
                     </ul>
                   )}
+                  {pv.hasTranslation && (
+                    <Button
+                      variant="text"
+                      size="sm"
+                      onClick={() => toggleOriginal(id)}
+                      aria-pressed={pv.isEnglish}
+                      className="-mx-2 text-md-tertiary"
+                    >
+                      {pv.isEnglish ? t.seeTranslation : t.seeOriginal}
+                    </Button>
+                  )}
                 </Card>
-              ))}
+                );
+              })}
             </ul>
           )}
         </section>

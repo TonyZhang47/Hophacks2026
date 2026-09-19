@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LANGS, useLang, type Lang } from "@/components/LanguageContext";
@@ -46,10 +47,7 @@ export function Header() {
           className="flex items-center gap-2 rounded-full pr-2"
           aria-label="RxPlain home"
         >
-          <span className="h-8 w-8 rounded-lg bg-md-primary text-md-on-primary grid place-items-center text-label font-semibold">
-            Rx
-          </span>
-          <span className="font-serif text-section font-normal">RxPlain</span>
+          <Image src="/logo.png" alt="RxPlain" width={731} height={245} priority className="h-9 w-auto" />
         </Link>
         <nav aria-label="Primary" className="flex items-center gap-1 sm:ml-4">
           {NAV.map((n) => {

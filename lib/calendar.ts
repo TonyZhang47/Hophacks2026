@@ -49,7 +49,7 @@ export function saveCalendarEntries(next: CalendarEntry[]): void {
 
 /** Spread typical clock times for N doses a day. User can still edit each slot. */
 export function suggestedTimes(timesPerDay: number | null | undefined): string[] {
-  const n = Math.min(Math.max(Math.round(timesPerDay ?? 1) || 1, 1), 6);
+  const n = Math.min(Math.max(Math.round(timesPerDay ?? 1) || 1, 1), 12);
   const slots: Record<number, string[]> = {
     1: ["08:00"],
     2: ["08:00", "20:00"],
@@ -58,7 +58,15 @@ export function suggestedTimes(timesPerDay: number | null | undefined): string[]
     5: ["08:00", "11:00", "14:00", "17:00", "20:00"],
     6: ["08:00", "10:00", "12:00", "14:00", "16:00", "20:00"],
   };
-  return slots[n] ?? ["08:00"];
+  if (slots[n]) return slots[n];
+  // 7–12 a day: spread evenly between 07:00 and 22:00 so there is exactly one slot per dose.
+  const startMin = 7 * 60;
+  const endMin = 22 * 60;
+  const step = (endMin - startMin) / (n - 1);
+  return Array.from({ length: n }, (_, i) => {
+    const m = Math.round(startMin + i * step);
+    return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+  });
 }
 
 export function addPlannedDoses(opts: {

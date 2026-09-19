@@ -1,3 +1,6 @@
+"use client";
+
+import { useLang } from "@/components/LanguageContext";
 import type { Severity } from "@/lib/types";
 
 export const SEVERITY_LABEL: Record<Severity, string> = {
@@ -5,6 +8,11 @@ export const SEVERITY_LABEL: Record<Severity, string> = {
   moderate: "Moderate",
   minor: "Minor",
   unknown: "Unknown",
+};
+
+export const SEVERITY_LABELS: Record<"en" | "es", Record<Severity, string>> = {
+  en: SEVERITY_LABEL,
+  es: { major: "Mayor", moderate: "Moderada", minor: "Menor", unknown: "Desconocida" },
 };
 
 const styles: Record<Severity, string> = {
@@ -30,10 +38,11 @@ export const SEVERITY_ACCENT: Record<Severity, string> = {
 
 /** Status pill: dot + WORD + tint. Severity is never color alone. */
 export function SeverityChip({ severity, className = "" }: { severity: Severity; className?: string }) {
+  const { lang } = useLang();
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full h-7 px-2.5 text-meta font-medium ${styles[severity]} ${className}`}>
       <span className={`h-1.5 w-1.5 rounded-full ${dots[severity]}`} aria-hidden="true" />
-      {SEVERITY_LABEL[severity]}
+      {SEVERITY_LABELS[lang][severity]}
     </span>
   );
 }

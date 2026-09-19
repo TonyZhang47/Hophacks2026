@@ -4,7 +4,7 @@ import { Leaf, Pill } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ListenButton } from "@/components/ui/ListenButton";
 import { Panel, PanelHeader } from "@/components/ui/Panel";
-import { SeverityChip } from "@/components/ui/SeverityChip";
+import { SeverityChip, SEVERITY_LABELS } from "@/components/ui/SeverityChip";
 import { Select } from "@/components/ui/TextField";
 import { useLang } from "@/components/LanguageContext";
 import { MedSearch } from "@/components/meds/MedSearch";
@@ -71,7 +71,7 @@ export function MedsWorkspace() {
     : null;
   if (counts) results.forEach((r) => counts[r.severity]++);
   return (
-    <div className="space-y-8 pb-8">
+    <div className="space-y-8 pt-6 lg:pt-8 pb-8">
       <div className="grid lg:grid-cols-[0.85fr_1.5fr] gap-6 items-start">
         <Panel id="my-medicines" className="scroll-mt-24">
           <PanelHeader
@@ -177,9 +177,9 @@ export function MedsWorkspace() {
               <option value="all">
                 {es ? "Todos los niveles" : "All levels"}
               </option>
-              {["major", "moderate", "minor", "unknown"].map((s) => (
+              {(["major", "moderate", "minor", "unknown"] as const).map((s) => (
                 <option key={s} value={s}>
-                  {s[0].toUpperCase() + s.slice(1)}
+                  {SEVERITY_LABELS[lang][s]}
                 </option>
               ))}
             </Select>
