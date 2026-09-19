@@ -1,15 +1,15 @@
 # Privacy Policy — RxPlain
 
 **Last updated:** September 18, 2026  
-**Product:** RxPlain (HopHacks 2026 hackathon demo)
+**Product:** RxPlain (HopHacks 2026 — Philanthropy track hackathon demo)
 
 This Privacy Policy explains what RxPlain does and does not collect. This is an educational hackathon project, not a commercial health product and not a HIPAA-covered entity.
 
 ## 1. Who we are
-RxPlain is a student-built accessibility demo that helps people understand medication interaction information in plain language. It is not a pharmacy, clinic, or medical device manufacturer.
+RxPlain is a student-built **philanthropy / social-good** demo for HopHacks. It widens access to understanding medication labels for people shut out by jargon, vision barriers, or cognitive load. It is not a pharmacy, clinic, healthcare platform, or medical device manufacturer.
 
 ## 2. What the product is for
-RxPlain lets you search medications, view interaction summaries grounded in public data sources, hear results aloud, and optionally export a one-page PDF for discussion with a licensed professional.
+RxPlain lets you search medications, view plain-language summaries grounded in public data sources, hear results aloud, and optionally export a one-page educational share sheet for a caregiver or appointment discussion.
 
 ## 3. Information we process
 

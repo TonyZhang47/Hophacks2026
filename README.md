@@ -1,19 +1,24 @@
 # RxPlain
 
-**HopHacks 2026 — Bloomberg track.** Prescription info in **plain language** — an accessibility-first interaction helper that turns dense FDA / label text into something people can see, hear, and take to a clinician.
+**HopHacks 2026 — [Bloomberg] Most Philanthropic Hack.** A free public-good tool so people shut out by dense medication labels can **understand** what they’re taking — in plain language they can see, hear, and share.
 
 Built with **Cursor**. Planning assisted by **Grok Bot** (team workflow only — not a runtime API).
 
-**Who it’s for:** people who struggle with medical jargon, vision, literacy, or cognitive load — and anyone who wants a clearer conversation with their pharmacist or doctor.
+### Why this is philanthropy (not healthcare)
+Medication labels and interaction text are written for professionals. That excludes millions of people with **low health literacy**, **vision or reading barriers**, **cognitive load**, or **limited English comfort with medical jargon**. RxPlain’s goal is **equitable access to understanding** — a social-good accessibility project — **not** diagnosing, prescribing, or replacing care.
+
+We are **not** submitting as a healthcare/clinical product. Public drug databases are only the grounding so explanations stay honest; the product value is **inclusion**.
+
+**Who it helps:** older adults, caregivers, people with low literacy or vision barriers, and anyone who leaves a pharmacy unsure what their bottles mean — so they can ask better questions of a pharmacist or doctor.
 
 Someone searches for their meds (2–10) and gets:
 
-- a **plain-language** interaction risk summary (literacy / cognitive access)
-- a **visual graph** instead of a wall of label text
-- **English read-aloud** via Grok Voice (vision / auditory access)
-- a **one-page PDF** they can bring to an appointment (communication access)
+- a **plain-language** summary of possible interaction warnings (literacy access)
+- a **simple visual map** instead of a wall of label text
+- **spoken read-aloud** via Grok Voice (vision / auditory access)
+- a **one-page share sheet** they can bring to an appointment or show a caregiver (advocacy access)
 
-This is an accessibility product, not a replacement for a pharmacist or clinician. Every screen should say: **confirm with a licensed professional before changing how you take any medicine.**
+This is an **educational accessibility** product, not medical advice and not a clinical decision tool. Every screen should say: **confirm with a licensed professional before changing how you take any medicine.**
 
 **UI accessibility baseline (MVP):** large readable type, high contrast, keyboard-usable search and actions, visible focus states, severity not conveyed by color alone (include text labels), and a persistent disclaimer. Voice is a core path, not a gimmick.
 
@@ -35,7 +40,7 @@ Use each source for one job. Do not add a second vendor for the same job.
 | Plain-English cards | **Grok chat** | Rewrite provided evidence into fixed JSON |
 | Interaction graph | **Cytoscape.js** | Same JSON as cards; not a generative image |
 | Read aloud + timed prompt + live Q&A (stretch) | **Grok Voice** | One voice stack for the whole product |
-| Doctor PDF | **Your code** | Layout from structured JSON only |
+| Share sheet PDF | **Your code** | One-page handout for a caregiver or appointment — not a clinical chart |
 
 **Rule of thumb:** Grok thinks, sees (stretch OCR), speaks, and converses. Structured data decides severity. No ElevenLabs. No second TTS.
 
@@ -55,7 +60,7 @@ Use each source for one job. Do not add a second vendor for the same job.
    4. Plain-English cards    →  Grok chat (JSON)
    5. Graph                  →  Cytoscape.js
    6. Read aloud             →  Grok Voice
-   7. PDF                    →  your code
+   7. Share-sheet PDF         →  your code
 
 Stretch (only after MVP works):
    - Grok Voice Agent over current results
@@ -89,13 +94,13 @@ Grok rewrites **only** provided severity + evidence into:
 }
 ```
 
-Health explainer, not prescriber. Never “stop taking X.” Always talk to a clinician/pharmacist.
+Health explainer for access, not a prescriber. Never “stop taking X.” Always suggest talking with a pharmacist or doctor.
 
 ### 4. Grok Voice read-aloud (core access path)
 English “Read this card” / “Read all” as primary actions on results. Optional one timed prompt after analysis. Short sentences; explain jargon. No language picker and no second TTS vendor in MVP.
 
-### 5. Doctor PDF
-Med list, flagged pairs, short card text, disclaimer. Same JSON as the UI. Print-to-PDF is an acceptable fallback.
+### 5. Share-sheet PDF
+Med list, flagged pairs, short card text, disclaimer, “questions to ask.” Same JSON as the UI. Educational handout — not a medical record. Print-to-PDF is an acceptable fallback.
 
 ---
 
@@ -127,11 +132,11 @@ Med list, flagged pairs, short card text, disclaimer. Same JSON as the UI. Print
 3. DDInter + openFDA + pairwise table  
 4. Grok cards + Cytoscape graph  
 5. Grok Voice read-aloud  
-6. PDF export  
+6. Share-sheet PDF export  
 7. Seed demo meds (e.g. ibuprofen + warfarin) + deploy to Vercel  
 8. Stretch only after 1–7 work  
 
-If you finish 1–6, you have the full accessibility story for judges.
+If you finish 1–6, you have the full philanthropy / accessibility story for judges.
 
 ---
 
@@ -162,13 +167,21 @@ OPENFDA_API_KEY=   # optional but higher rate limit
 
 ## What “done” looks like for judging
 
-Lead the pitch with **accessibility** (plain language + voice + visual + doctor handoff), then show grounding (DDInter / openFDA).
+**Track:** Bloomberg Most Philanthropic Hack — help people / improve lives + technical difficulty + polish.
+
+**Pitch order (keep it philanthropy, not healthcare):**
+1. Who is excluded today (literacy, vision, cognitive load)  
+2. What RxPlain gives them for free (plain language, voice, visual map, share sheet)  
+3. Quick live demo of that loop  
+4. Brief grounding (public data + AI rewrite) — do **not** lead with “drug interaction checker” or clinical accuracy claims  
+
+Demo checklist:
 
 1. Add 3–4 common meds via search (seed pair ready if APIs are slow)  
 2. See a graph with text-labeled severity (not color alone)  
 3. Hear the English summary via Grok Voice as a primary action  
-4. Download a one-page PDF for the appointment  
+4. Download a one-page share sheet  
 
 **Stretch beats:** ask a question out loud about the current results; optional Rx photo; optional one other language.
 
-That accessibility loop is the product. Everything else is polish.
+That **access loop** is the product. Everything else is polish.

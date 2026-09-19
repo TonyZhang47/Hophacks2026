@@ -1,12 +1,12 @@
 # Terms and Conditions — RxPlain
 
 **Last updated:** September 18, 2026  
-**Product:** RxPlain (HopHacks 2026 hackathon demo)
+**Product:** RxPlain (HopHacks 2026 — Philanthropy track hackathon demo)
 
 By accessing or using RxPlain, you agree to these Terms. If you do not agree, do not use the app.
 
 ## 1. Educational demo only
-RxPlain is a student hackathon project for accessibility and education. It is **not** a medical device, not a pharmacy service, and not a substitute for a licensed clinician, pharmacist, or emergency services.
+RxPlain is a student hackathon project for **philanthropy, accessibility, and education** (equitable access to understanding medication information). It is **not** a medical device, not a healthcare product, not a pharmacy service, and not a substitute for a licensed clinician, pharmacist, or emergency services.
 
 ## 2. No medical advice
 Content shown, spoken, or exported by RxPlain (including interaction severity, plain-language cards, graphs, voice answers, and PDFs) is for **discussion and understanding only**.

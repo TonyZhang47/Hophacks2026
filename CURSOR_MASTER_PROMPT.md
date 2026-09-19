@@ -1,16 +1,26 @@
-# Master prompt: RxPlain (hackathon)
+# Master prompt: RxPlain (Bloomberg Most Philanthropic Hack)
 
 Paste everything below the line into Cursor as the initial build instruction.
 
 ---
 
 ## Role
-You are building **RxPlain**, an **accessibility-first** hackathon web product. The core problem is access: people cannot use dense drug-label language. RxPlain turns structured interaction data into plain language, a visual graph, Grok Voice read-aloud, and a one-page doctor PDF. Implement end-to-end vertical slices. Prefer a working demo path over incomplete breadth. Do not invent clinical facts; severity comes from structured data; the LLM only rewrites provided evidence into a fixed schema.
+You are building **RxPlain** for HopHacks **[Bloomberg] Most Philanthropic Hack**. This is a **social-good / equity** product, **not** a healthcare or clinical decision-support app.
+
+**Problem (philanthropy):** dense medication labels exclude people with low health literacy, vision or reading barriers, and high cognitive load. That is an access and inclusion problem.
+
+**Solution:** free plain-language summaries, a simple visual map, Grok Voice read-aloud, and a one-page share sheet people can show a caregiver or bring to a pharmacist/doctor visit.
+
+Implement end-to-end vertical slices. Prefer a working demo path over incomplete breadth. Do not invent clinical facts; severity comes from structured data; the LLM only rewrites provided evidence into a fixed schema.
 
 ## Product one-liner
-**RxPlain** makes medication interactions accessible in plain language: user adds 2–10 meds via search → pairwise severity from DDInter → plain-language cards → visual graph → Grok Voice read-aloud → PDF for a clinician visit. Brand **RxPlain** in the UI header, PDF title, and disclaimer.
+**RxPlain** helps people who can’t use medical jargon understand possible medication interaction warnings: add 2–10 meds → pairwise severity from DDInter → plain-language cards → visual map → Grok Voice read-aloud → share-sheet PDF. Brand **RxPlain** in the UI header, PDF title, and disclaimer.
 
-**Accessibility is the product**, not a feature add-on. Design for literacy, vision, cognitive load, and appointment advocacy. Pitch and UI copy should lead with access, then show the clinical grounding.
+**Pitch & UI rules (critical):**
+- Lead with **who is left out** and **equitable access to understanding**.
+- Call it an **educational accessibility / public-good** tool — never “AI doctor,” “clinical checker,” or “healthcare platform.”
+- Do **not** compete narratively with the Healthcare track. Public APIs (RxNorm, openFDA, DDInter) are evidence grounding, not the product story.
+- **Accessibility is the product.** Design for literacy, vision, cognitive load, and self-advocacy.
 
 ## Non-negotiable safety + accessibility rules
 - Persistent disclaimer: educational only, not medical advice; discuss with a pharmacist/doctor.
@@ -20,6 +30,7 @@ You are building **RxPlain**, an **accessibility-first** hackathon web product. 
 - Never tell the user to start, stop, or change a medicine.
 - **A11y baseline:** large type, high contrast, keyboard access, visible focus, severity labeled in text (not color-only), semantic headings/buttons, read-aloud as a primary action on results.
 - **Legal:** Ship footer links to Privacy Policy and Terms (`/privacy`, `/terms` pages that render [`PRIVACY.md`](PRIVACY.md) / [`TERMS.md`](TERMS.md) content, or static routes). Short first-run note: educational demo, not medical advice, see Terms.
+- **Copy tone:** “share sheet,” “plain language,” “hear this,” “questions to ask” — avoid clinic/EHR/CDS language.
 
 ## Stack (do not expand without a strong reason)
 - **Frontend:** Next.js (App Router) + TypeScript + Tailwind
@@ -30,7 +41,7 @@ You are building **RxPlain**, an **accessibility-first** hackathon web product. 
 - **Plain-English rewrite:** **xAI Grok** chat with strict JSON output
 - **Voice (all of it):** **xAI Grok Voice** — English read-aloud, optional one timed prompt, optional live Q&A stretch
 - **Interaction graph:** **Cytoscape.js** from the same JSON as the cards (not Imagine)
-- **Doctor export:** client or server PDF from structured JSON (`@react-pdf/renderer` or `pdf-lib`)
+- **Share-sheet export:** client or server PDF from structured JSON (`@react-pdf/renderer` or `pdf-lib`) — labeled as a handout, not a medical record
 - **Hosting:** Vercel; secrets in `.env.local` / Vercel env
 
 **Do not use:** ElevenLabs, Scribe, DrugBank as a second severity source, Google Calendar OAuth, auth/DB, dual TTS routers, pronunciation maps, or Grok Imagine in MVP.
@@ -74,8 +85,9 @@ You are building **RxPlain**, an **accessibility-first** hackathon web product. 
 - No second TTS vendor. No language picker in MVP.
 - Cards use short sentences and everyday words; avoid medical jargon unless immediately explained.
 
-### 6) Doctor PDF
-- One page from the same JSON: med list, date, flagged pairs, short card text, disclaimer.
+### 6) Share-sheet PDF
+- One page from the same JSON: med list, date, flagged pairs, short card text, disclaimer, “questions to ask.”
+- Title it as an educational handout / share sheet — not a clinical chart.
 - No second LLM pass for layout.
 
 ## Stretch only (after MVP works end-to-end)
@@ -116,19 +128,19 @@ Document in README + `.env.example`. Never commit secrets.
 3. DDInter load + pairwise check + openFDA evidence.
 4. Grok JSON cards + Cytoscape graph.
 5. Grok Voice read-aloud (+ one timed prompt if easy).
-6. PDF export.
+6. Share-sheet PDF export.
 7. Seed demo page (e.g. ibuprofen + warfarin) for judges.
 8. Stretch items only after 1–7 work on Vercel.
 
 ## Acceptance criteria (first demo)
-- Pitch/UI lead with accessibility (plain language, voice, visual, PDF handoff).
+- Pitch/UI lead with **philanthropy**: who is excluded → free plain language / voice / visual / share sheet. Do not pitch as a healthcare app.
 - Add Advil (ibuprofen) + warfarin (or similar) via search.
 - Severity from DDInter; plain-language cards from Grok.
 - Graph with severity-colored edges **and** text labels; click edge → card.
 - English read-aloud via Grok Voice as a primary control on results.
-- PDF downloads with med list + flagged pairs + disclaimer.
+- Share-sheet PDF downloads with med list + flagged pairs + disclaimer.
 - Keyboard can complete the main path; focus states visible.
-- README: setup, env vars, Grok-only voice, accessibility focus.
+- README: setup, env vars, Grok-only voice, philanthropy + accessibility focus.
 
 ## Out of scope for v1
 - ElevenLabs or any second TTS/STT vendor
@@ -136,7 +148,7 @@ Document in README + `.env.example`. Never commit secrets.
 - Multilingual UI (unless stretch #3)
 - Live Voice Agent before MVP works
 - Imagine-driven graphs or invented interactions
-- Clinical decision support claims; replacing clinicians
+- Clinical decision support claims; Healthcare-track positioning; replacing clinicians
 - Google Calendar OAuth; HIPAA productization; user accounts
 
 ## Deliverables
