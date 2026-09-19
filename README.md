@@ -1,6 +1,6 @@
-# Accessible Prescription Interaction Assistant
+# MedClear
 
-**HopHacks 2026 — Bloomberg track.** Help people understand their medications in plain language.
+**HopHacks 2026 — Bloomberg track.** Plain-language medication interaction clarity — so people can understand their meds before they talk to a clinician.
 
 Built with **Cursor**. Planning assisted by **Grok Bot** (team workflow only — not a runtime API).
 
@@ -116,7 +116,7 @@ Med list, flagged pairs, short card text, disclaimer. Same JSON as the UI. Print
 
 ## Weekend build order
 
-1. Scaffold Next.js + disclaimer  
+1. Scaffold Next.js + MedClear header + disclaimer  
 2. RxNorm search + med list  
 3. DDInter + openFDA + pairwise table  
 4. Grok cards + Cytoscape graph  

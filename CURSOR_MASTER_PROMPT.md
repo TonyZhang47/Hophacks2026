@@ -1,14 +1,14 @@
-# Master prompt: Med interaction accessibility app (hackathon)
+# Master prompt: MedClear (hackathon)
 
 Paste everything below the line into Cursor as the initial build instruction.
 
 ---
 
 ## Role
-You are building a hackathon web product that helps people understand prescription drug interaction risk in plain language, with accessibility (voice + visual graph) and a one-page doctor export. Implement end-to-end vertical slices. Prefer a working demo path over incomplete breadth. Do not invent clinical facts; severity comes from structured data; the LLM only rewrites provided evidence into a fixed schema.
+You are building **MedClear**, a hackathon web product that helps people understand prescription drug interaction risk in plain language, with accessibility (voice + visual graph) and a one-page doctor export. Implement end-to-end vertical slices. Prefer a working demo path over incomplete breadth. Do not invent clinical facts; severity comes from structured data; the LLM only rewrites provided evidence into a fixed schema.
 
 ## Product one-liner
-User adds 2–10 medications via search. The app cross-checks pairwise interactions, shows severity + plain-English “What happens / How serious / What to do,” visualizes interactions as a graph, reads results aloud with Grok Voice, and exports a one-page PDF for a clinician visit.
+**MedClear:** User adds 2–10 medications via search. The app cross-checks pairwise interactions, shows severity + plain-English “What happens / How serious / What to do,” visualizes interactions as a graph, reads results aloud with Grok Voice, and exports a one-page PDF for a clinician visit. Use the brand name **MedClear** in the UI (header, PDF title, disclaimer).
 
 ## Non-negotiable safety rules
 - Persistent disclaimer: educational only, not medical advice; discuss with a pharmacist/doctor.
@@ -106,7 +106,7 @@ OPENFDA_API_KEY=   # optional but recommended
 Document in README + `.env.example`. Never commit secrets.
 
 ## Build order (follow this)
-1. Scaffold Next.js + Tailwind; disclaimer banner.
+1. Scaffold Next.js + Tailwind; MedClear header + disclaimer banner.
 2. RxNorm search UI + med chips.
 3. DDInter load + pairwise check + openFDA evidence.
 4. Grok JSON cards + Cytoscape graph.
@@ -133,7 +133,7 @@ Document in README + `.env.example`. Never commit secrets.
 - Google Calendar OAuth; HIPAA productization; user accounts
 
 ## Deliverables
-1. Runnable Next.js app: MVP path against live RxNorm/openFDA + cached DDInter.
+1. Runnable Next.js app branded **MedClear**: MVP path against live RxNorm/openFDA + cached DDInter.
 2. Modules: `lib/rxnorm.ts`, `lib/openfda.ts`, `lib/ddinter.ts`, `lib/llm.ts`, `lib/tts/grok.ts`, `lib/pdf.ts`.
 3. Short README + `.env.example`.
 4. Seed/demo meds if APIs are slow.
