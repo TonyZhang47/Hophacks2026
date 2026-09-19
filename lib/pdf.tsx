@@ -2,6 +2,7 @@ import React from "react";
 import { Document, Page, StyleSheet, Text, View, renderToBuffer } from "@react-pdf/renderer";
 import type { ShareSheetData } from "@/components/share/ShareSheetButton";
 import type { ClinicResult, InteractionCard, Severity } from "@/lib/types";
+import { plainifyForSpeech as plain } from "@/lib/glossary";
 
 /**
  * Server-only one-page share sheet (Feature 6). Built from the same validated JSON as the UI.
@@ -72,7 +73,7 @@ function InteractionBlock({ card }: { card: InteractionCard }) {
       {card.whatHappens ? (
         <Text style={s.p}>
           <Text style={s.bold}>What can happen: </Text>
-          {card.whatHappens}
+          {plain(card.whatHappens)}
         </Text>
       ) : null}
       {card.whatToDo ? (
@@ -84,7 +85,7 @@ function InteractionBlock({ card }: { card: InteractionCard }) {
       {card.askYourClinician ? (
         <Text style={s.p}>
           <Text style={s.bold}>Ask: </Text>
-          {card.askYourClinician}
+          {plain(card.askYourClinician)}
         </Text>
       ) : null}
     </View>
@@ -98,7 +99,7 @@ export function ShareSheetDocument({ data, date }: { data: ShareSheetData; date:
   const clinic = data.clinic ?? null;
 
   const questions = new Set<string>();
-  for (const c of cards) if (c.askYourClinician?.trim()) questions.add(c.askYourClinician.trim());
+  for (const c of cards) if (c.askYourClinician?.trim()) questions.add(plain(c.askYourClinician.trim()));
   for (const d of doses) if (d.result?.askYourPharmacist?.trim()) questions.add(d.result.askYourPharmacist.trim());
 
   const dateStr = date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
@@ -141,7 +142,7 @@ export function ShareSheetDocument({ data, date }: { data: ShareSheetData; date:
                 return (
                   <View key={i} style={{ marginBottom: 4 }} wrap={false}>
                     <Text style={s.bold}>{name}</Text>
-                    {d.result.plainDose ? <Bullet>{d.result.plainDose}</Bullet> : null}
+                    {d.result.plainDose ? <Bullet>{plain(d.result.plainDose)}</Bullet> : null}
                     {d.result.maxPerDayLine ? <Bullet>{d.result.maxPerDayLine}</Bullet> : null}
                   </View>
                 );

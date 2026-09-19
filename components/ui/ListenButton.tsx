@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Volume2, Square, Loader2 } from "lucide-react";
 import { useLang } from "@/components/LanguageContext";
 import { Button, type ButtonVariant } from "@/components/ui/Button";
+import { plainifyForSpeech } from "@/lib/glossary";
 
 type State = "idle" | "loading" | "playing";
 
@@ -36,17 +37,32 @@ async function speakViaBrowser(text: string, lang: string, onEnd: () => void) {
 export interface ListenButtonProps {
   /** Exact text to read aloud. Only pass validated text. */
   text: string;
+  /** Lazily compute the text at click time (e.g. "read this page"). Takes precedence over `text`. */
+  getText?: () => string;
   label?: string;
   variant?: ButtonVariant;
   size?: "sm" | "md" | "lg";
   className?: string;
+  /** Icon-only (label kept for screen readers). */
+  iconOnly?: boolean;
+  /** Replace technical terms with plain phrases before speaking (default true). */
+  plain?: boolean;
 }
 
 /**
  * Click-to-listen. POSTs to /api/tts (Grok Voice → ElevenLabs router).
  * Falls back to the browser's speech engine when the server has no voice key (demo mode).
  */
-export function ListenButton({ text, label = "Listen", variant = "filled", size = "md", className = "" }: ListenButtonProps) {
+export function ListenButton({
+  text,
+  getText,
+  label = "Listen",
+  variant = "filled",
+  size = "md",
+  className = "",
+  iconOnly,
+  plain = true,
+}: ListenButtonProps) {
   const { lang } = useLang();
   const [state, setState] = useState<State>("idle");
   const abortRef = useRef<AbortController | null>(null);
@@ -64,6 +80,9 @@ export function ListenButton({ text, label = "Listen", variant = "filled", size 
 
   const play = async () => {
     if (state !== "idle") return stop();
+    const raw = (getText ? getText() : text) ?? "";
+    const spoken = (plain ? plainifyForSpeech(raw) : raw).slice(0, 4000);
+    if (!spoken.trim()) return;
     stopCurrent?.();
     setState("loading");
     const ctrl = new AbortController();
@@ -72,7 +91,7 @@ export function ListenButton({ text, label = "Listen", variant = "filled", size 
       const res = await fetch("/api/tts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, lang }),
+        body: JSON.stringify({ text: spoken, lang }),
         signal: ctrl.signal,
       });
       if (!res.ok) throw new Error(`tts ${res.status}`);
@@ -97,7 +116,7 @@ export function ListenButton({ text, label = "Listen", variant = "filled", size 
     } catch (err) {
       if ((err as Error).name === "AbortError") return;
       // Demo fallback: browser speech synthesis.
-      const cancel = await speakViaBrowser(text, lang, () => {
+      const cancel = await speakViaBrowser(spoken, lang, () => {
         setState("idle");
         stopCurrent = null;
       });
@@ -107,6 +126,7 @@ export function ListenButton({ text, label = "Listen", variant = "filled", size 
   };
 
   const Icon = state === "loading" ? Loader2 : state === "playing" ? Square : Volume2;
+  const visible = state === "playing" ? "Stop" : state === "loading" ? "Loading…" : label;
   return (
     <Button
       variant={variant}
@@ -114,10 +134,10 @@ export function ListenButton({ text, label = "Listen", variant = "filled", size 
       onClick={play}
       aria-label={state === "playing" ? `Stop reading: ${label}` : `${label}: read this aloud`}
       aria-pressed={state === "playing"}
-      className={className}
+      className={`${iconOnly ? "!px-0 w-9" : ""} ${className}`}
     >
-      <Icon className={`h-5 w-5 ${state === "loading" ? "animate-spin" : ""}`} aria-hidden="true" />
-      <span>{state === "playing" ? "Stop" : state === "loading" ? "Loading…" : label}</span>
+      <Icon className={`h-4 w-4 ${state === "loading" ? "animate-spin" : ""}`} aria-hidden="true" />
+      {!iconOnly && <span>{visible}</span>}
     </Button>
   );
 }

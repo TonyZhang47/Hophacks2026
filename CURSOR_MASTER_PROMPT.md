@@ -36,18 +36,19 @@ Implement end-to-end vertical slices. Prefer a working demo path over incomplete
 - **Legal:** Ship footer links to Privacy Policy and Terms (`/privacy`, `/terms` pages that render [`PRIVACY.md`](PRIVACY.md) / [`TERMS.md`](TERMS.md) content, or static routes). Short first-run note: educational demo, not medical advice, see Terms. Community tab gets its own one-line note: anonymous, public, not medical advice, no personal details.
 - **Copy tone:** "share sheet," "plain language," "hear this," "questions to ask," "people near you" — avoid clinic/EHR/CDS language.
 
-## UI / visual design (follow `DESIGN_SYSTEM.md`)
-Use the **Material You (Material Design 3)** style from [designprompts.dev/material-design](https://www.designprompts.dev/material-design), as condensed and adapted in [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md). Read that file before writing any component. Where it and the original prompt disagree, `DESIGN_SYSTEM.md` wins (it raises body text to 20px, adds severity tokens with text labels, and makes reduced-motion mandatory).
+## UI / visual design (follow `DESIGN_SYSTEM.md` rev 3)
+The team switched from Material You to a **clean analytics-dashboard** look (white panels on a soft gray canvas, hairline borders, charcoal buttons, uppercase eyebrow section titles with an icon, KPI tiles with delta pills, dropdown filters in panel corners, generous whitespace). Everything is specified in [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md). Read it before writing any component; it wins over anything older in this file.
 
 Non-negotiables in one line each:
-- Purple seed palette: background `#FFFBFE` (never pure white), primary `#6750A4`, cards on `#F3EDF7`, chips on `#E8DEF8`. Tokens live in `tailwind.config.ts` as `md-*` / `sev-*`; no raw hex in components.
-- **Roboto** via `next/font/google` (400/500/700). Body text **20px**; nothing under 14px.
-- **Pill buttons everywhere** (`rounded-full`), cards `rounded-3xl`, hero/graph container `rounded-[48px]`, MD3 filled text fields (rounded top, 2px bottom border).
-- Depth from tonal surfaces + `shadow-sm → shadow-md` on hover; 2–3 organic `blur-3xl` shapes behind the hero and the Community header, `aria-hidden`.
-- State layers (`bg-md-primary/90`, `/10`), `active:scale-95`, `cubic-bezier(0.2,0,0,1)`, 200–300ms, and a `prefers-reduced-motion` override.
-- Severity, coverage, and status are always **words** plus color, never color alone.
-- The **Listen** button is a filled primary pill with a speaker icon, top-right of every card; "Read all" is a tertiary FAB.
-- Build the reusable pieces once: `Button` (filled / tonal / outlined / text / fab), `Card`, `Chip`, `TextField`, `ListenButton`, `SeverityChip`, `BlurBackdrop`.
+- Canvas `#F4F5F7`, panels white with `border-md-outline` and 16px radius, primary `#111318`, one accent `#2563EB`. Tokens in `tailwind.config.ts` as `md-*` / `sev-*`; no raw hex in components.
+- **Inter** via `next/font/google`. Body **17px**; nothing under 13px. Tabular numbers.
+- **Grid, not stack.** 12-column grid, 24px gutters, panels side by side; a `PageHeader` row + a `StatTile` KPI row on top of every page. Compositions for both pages are drawn in `DESIGN_SYSTEM.md`.
+- Panel anatomy: `PanelHeader` (icon + eyebrow + actions) → body. Long lists scroll inside their panel.
+- Pill buttons and chips; white inputs with hairline borders; no blur shapes, no hero, no gradients.
+- Severity, coverage, and status are always **words** plus color (`SeverityChip`, `StatusPill`).
+- **Read-aloud everywhere:** header **Read page** control, a floating **Listen to selection** pill on any selected text (`ReadSelection`), and a Listen button in every panel header and card.
+- **Plain language everywhere:** `PlainText` swaps medical terms for plain phrases (dotted underline, original in tooltip) and `plainifyForSpeech` does the same for audio and PDF; medicines show generic + common brand names via `lib/plainNames` ("Ibuprofen · Advil, Motrin").
+- Reusable pieces: `Button`, `Card`, `Chip`, `TextField`/`TextArea`/`Select`, `Panel`/`PanelHeader`/`StatTile`/`PageHeader`/`KeyValue`, `SeverityChip`/`StatusPill`, `ListenButton`, `PlainText`.
 
 ## Stack (do not expand without a strong reason)
 - **Frontend:** Next.js (App Router) + TypeScript + Tailwind
@@ -141,7 +142,7 @@ Seed `INTERACTIONS`, `LABEL_SECTIONS` (for the demo meds at minimum), `DOSE_LIMI
 - No second LLM pass for layout.
 
 ### 7) Dose Explainer — "how much and when," with low risk tolerance
-**What it is:** the person types (or OCRs, stretch) the directions on their own bottle — e.g. `metformin 500 mg, 1 tablet twice daily with meals` — and RxPlain restates it in plain language and audio, *after* checking it against the official label. It is a **reading aid**, not a dose calculator.
+**What it is:** the person **scans a photo of their bottle** (Grok image understanding → text; camera on phones, file picker on desktop; the image is never stored) **or types** the directions on their own bottle — e.g. `metformin 500 mg, 1 tablet twice daily with meals` — and RxPlain restates it in plain language and audio, *after* checking it against the official label. It is a **reading aid**, not a dose calculator.
 
 **Why RAG + guardrails, not a plain "compare to a number online" check:** correct doses depend on indication, age, weight, and kidney/liver function, so no single "recommended amount" exists to compare against; openFDA dose text is prose, not a number; and the max-dose datasets (DrugCentral MRTD, FDA MRDD) cover only ~900–1200 ingredients and are per-kg for many entries. So the primary path is retrieval of the official `dosage_and_administration` + `overdosage` text and an LLM that may only quote it; the numeric ceiling is a *second* independent check. Published pharma RAG benchmarks still show double-digit hallucination rates, so retrieval alone is not the guardrail — the numeric-grounding check (G3) is.
 
@@ -207,7 +208,7 @@ Seed `INTERACTIONS`, `LABEL_SECTIONS` (for the demo meds at minimum), `DOSE_LIMI
 Do these in order; skip freely if time is short:
 
 1. **Grok Voice Agent** — user asks about the *current* results; agent answers from already-computed JSON only (`wss://api.x.ai/v1/realtime`, `instructions` = the validated cards + dose JSON; `tools` optional; no free-hallucinated drug knowledge). Grok STT (`grok-voice-transcribe-2.0`) for push-to-talk if the realtime socket is too much; ElevenLabs `scribe_v2` only for languages Grok STT lacks.
-2. **Prescription photo OCR** — Grok vision → parse into the Feature 7 input schema → user confirms → dose explainer runs. Never skip the confirmation step.
+2. ~~Prescription photo OCR~~ — **now MVP** (`/api/ocr/prescription`, `ScanBottle`). Never skip the confirmation step.
 3. **More languages** — extend the selector; text via Grok chat with G4 placeholders; audio via the router (Grok for its 20, ElevenLabs `eleven_v3` beyond that).
 4. **Clinic enrichment** — NPPES live refresh; CMS Doctors & Clinicians "accepts Medicare assignment."
 5. **Grok Imagine** — one "Generate explainer image" for the top major pair from validated JSON only. Never use Imagine for the graph or severity.

@@ -1,105 +1,87 @@
-# RxPlain design system — Material You (Material Design 3)
+# RxPlain design system — rev 3, analytics-dashboard style
 
-Adapted from the **Material Design** prompt at [designprompts.dev/material-design](https://www.designprompts.dev/material-design) (open it and press **Prompt** for the full 24k-character original). This file keeps the tokens and rules that matter for RxPlain and adds the accessibility overrides our product needs. **When this file and the original disagree, this file wins.**
+Rev 3 replaces the Material You look (rev 2) with the **clean analytics-dashboard** aesthetic the team chose from a reference shot: white panels on a soft gray canvas, hairline borders, charcoal primary buttons, small uppercase section labels with an icon, big KPI numbers with green/red delta pills, dropdown filters in panel corners, and a lot of breathing room. **Token names are unchanged from rev 2 (`md-*`, `sev-*`) so components keep working; only the values changed.** When this file and any older prompt text disagree, this file wins.
 
 ## Vibe
-Friendly, soft, rounded, colorful, personal. Tonal surfaces instead of stark white. Pill buttons. Organic blurred shapes in the background. Smooth, confident motion (never bouncy, never jarring). Every interactive element gives tactile feedback.
+Calm, precise, uncluttered. Information is arranged in a **grid of panels**, never a tall stack. Color is reserved for status (severity, coverage, deltas) and the one accent. Everything else is white, gray, and charcoal.
 
-## Tokens (Tailwind theme — put these in `tailwind.config.ts` under `theme.extend.colors.md`)
+## Tokens (Tailwind `theme.extend.colors.md` / `.sev`)
 
-| Token | Hex | Use |
+| Token | Value | Use |
 | --- | --- | --- |
-| `md-background` | `#FFFBFE` | Page background. **Never `#FFFFFF`.** |
-| `md-on-background` | `#1C1B1F` | Body text. Never pure black. |
-| `md-primary` | `#6750A4` | CTAs, focus rings, Listen buttons, active nav |
+| `md-background` | `#F4F5F7` | Page canvas |
+| `md-on-background` | `#111318` | Primary text |
+| `md-primary` | `#111318` | Filled buttons, active nav, selected chips |
 | `md-on-primary` | `#FFFFFF` | Text on primary |
-| `md-secondary-container` | `#E8DEF8` | Chips (med chips, top-terms chips), tonal buttons |
-| `md-on-secondary-container` | `#1D192B` | Text on secondary container |
-| `md-tertiary` | `#7D5260` | FAB, accents |
-| `md-surface-container` | `#F3EDF7` | Cards (interaction cards, dose card, clinic rows, posts) |
-| `md-surface-container-low` | `#E7E0EC` | Inputs, recessed areas |
-| `md-outline` | `#79747E` | Borders (sparingly), input bottom border |
-| `md-on-surface-variant` | `#49454F` | Secondary text, icons |
+| `md-secondary-container` | `#F1F2F4` | Chips, tonal buttons, nested wells |
+| `md-tertiary` | `#2563EB` | The single accent: chart lines, links, info pills |
+| `md-surface-container` | `#FFFFFF` | Panels, cards, inputs |
+| `md-surface-container-low` | `#F8F9FB` | Recessed wells inside panels |
+| `md-outline` | `#E4E6EA` | Hairline borders |
+| `md-outline-strong` | `#C9CCD2` | Hover borders, dotted underlines |
+| `md-on-surface-variant` | `#6B7280` | Secondary text, icons, eyebrows |
+| `md-success` / `md-warning` / `md-error` | `#16A34A` / `#D97706` / `#DC2626` | Delta pills, status |
 
-**Severity tokens (RxPlain-specific; always paired with a text label, never color alone):**
-
-| Token | Hex | Label text |
-| --- | --- | --- |
-| `sev-major` | `#B3261E` (MD3 error) | "Major" |
-| `sev-moderate` | `#7D5260` (tertiary) | "Moderate" |
-| `sev-minor` | `#6750A4` (primary) | "Minor" |
-| `sev-unknown` | `#79747E` (outline) | "Unknown" |
-
-Use severity color for the graph edge, the card's left accent bar, and the chip background at 15% opacity. The chip **text** is the label word.
-
-**State layers (opacity overlays, not hue changes):**
-- Solid button hover `bg-md-primary/90`, active `bg-md-primary/80`
-- Transparent hover `bg-md-primary/10`, focus `bg-md-primary/5`
+**Severity (always a word + a dot + tint, never color alone):** `sev-major #DC2626`, `sev-moderate #D97706`, `sev-minor #2563EB`, `sev-unknown #6B7280`. Use `SeverityChip`.
 
 ## Typography
-- **Font:** Roboto via `next/font/google`, weights 400 / 500 / 700. Headings 500, body 400.
-- **RxPlain scale (one step larger than MD3 for low-vision readers):**
-  - Display: 3.5rem (hero only)
-  - Headline: 2rem
-  - Title (card titles): 1.5rem
-  - **Body default: 1.25rem / 20px** (MD3 "Body Large"). Never below 1rem anywhere except metadata.
-  - Label (buttons/chips): 1rem, weight 500, letter-spacing 0.01em
-  - Metadata: 0.875rem (this is the floor)
-- Line height 1.5–1.6 for body, 1.2–1.3 for headlines.
-- Dose card `plainDose` line: Title size (1.5rem), weight 500.
+- **Inter** via `next/font/google`, 400/500/600/700. Headings 600.
+- Scale (Tailwind `fontSize`): `display` 36px · `headline` 24px · `title` 18px · `kpi` 32px/600 · `body` 17px · `label` 15px/500 · `meta` 13px · `eyebrow` 12px/600 uppercase, 0.08em tracking.
+- Body is 17px (a step above the reference's 13–14px) for the low-vision audience; never below `meta` (13px).
+- Numbers use tabular figures (`font-feature-settings: "tnum"` is on body).
 
-## Shape
-- Buttons, chips, badges, Listen button: `rounded-full` — **always** pill.
-- FAB: `rounded-2xl` (28px), 56×56.
-- Cards: `rounded-3xl` (24px).
-- Hero / major section containers: `rounded-[48px]` desktop, `rounded-3xl` mobile.
-- Dialogs / sheets: 28px.
-- **Inputs (MD3 filled text field):** `rounded-t-lg` (12px top), square bottom, `bg-md-surface-container-low`, `h-14`, 2px bottom border `border-md-outline` → `border-md-primary` on focus, 200ms color transition.
+## Shape, borders, elevation
+- Panels/cards: `.panel` = white, `border border-md-outline`, `rounded-2xl` (16px), `shadow-sm`. Hover on interactive cards → `shadow-md` only (no scale).
+- Buttons and chips: pill (`rounded-full`). Filled = charcoal. Tonal = light gray with border. Outlined = white with border.
+- Inputs: white, hairline border, `rounded-lg` (10px), 44px tall, border turns charcoal on focus. No MD3 bottom-border fields.
+- Dropdown filters in panel headers: pill selects, 36px tall (`Select` in `components/ui/TextField`).
+- No decorative blur shapes, no gradients, no colored section backgrounds. `BlurBackdrop` renders nothing.
 
-## Elevation and effects
-- Depth comes from tonal surfaces first, shadows second. Cards `shadow-sm` at rest → `shadow-md` on hover; important sections `shadow-lg`; modals `shadow-xl`.
-- Shadows are soft and diffuse, near-black at 5–15% opacity.
-- **Organic blur shapes** in hero and the Community header: 2–3 large `rounded-full` / `rounded-[100px]` divs, primary / secondary / tertiary at 10–30% opacity, `blur-3xl`, `mix-blend-multiply`, positioned partially off-canvas, **`aria-hidden="true"`**.
-- Header: `bg-md-background/80 backdrop-blur-sm border-b border-md-outline/20`.
-- Glass cards only inside colored containers: `bg-white/10 backdrop-blur-sm border border-white/10`.
+## Layout — the rules that matter most
+1. **Grid, not stack.** Pages are a 12-column grid with 24px gutters (`grid grid-cols-12 gap-6`). Desktop compositions put panels side by side; a panel is only allowed to sit alone in a row if it is the graph or a table that needs the width. Mobile collapses to one column.
+2. **Page header row** replaces the hero: `PageHeader` = title (24px) + one-line subtitle on the left, primary actions on the right. ~24px above, ~16px below.
+3. **KPI row** directly under the page header when there are numbers to show: 3–4 `StatTile`s in one row (`grid-cols-2 lg:grid-cols-4`).
+4. **Panel anatomy:** `PanelHeader` (icon + uppercase eyebrow title + optional subtitle; actions/filters on the right) → 16px → body. Panel padding 20px. Inside a panel use `KeyValue` rows or dense cards; never nest a panel in a panel more than one level.
+5. **Whitespace budget:** 24px between panels, 16px between panel header and body, 12px between list items, 8px between chips. If two things compete for the same column, split the column rather than stacking a third panel.
+6. **Sticky sidebars only on lg+:** on the Meds page the left column (medicine list + actions) may be `lg:sticky lg:top-20`.
+7. **Long lists live inside a panel with their own scroll** (`max-h-[70vh] overflow-y-auto`) so the page stays a dashboard, not a scroll of cards.
 
-## Motion
-- Easing: `cubic-bezier(0.2, 0, 0, 1)` (Emphasized Decelerate).
-- Durations: hover/color 200ms, cards/surfaces 300ms, sheets/dialogs 400ms. Never > 500ms.
-- `active:scale-95` on every clickable element. `hover:scale-[1.02]` on interactive cards. `group` + `group-hover:` for coordinated effects.
-- Animate: background (state layers), shadow, scale, opacity, transform. Don't animate: border radius, layout, hue.
-- **`prefers-reduced-motion: reduce` → drop all scale/translate transforms, keep color transitions.** This is mandatory for RxPlain.
+### Meds page composition (lg+)
+```
+PageHeader: "Your medicines" · subtitle · [Try a demo set] [Download share sheet]
+StatTiles:   Major n · Moderate n · Minor n · Unknown n    (one row)
+Row A:  col-span-4  Panel "My medicines"  (search, chips, Check button, Read-all)
+        col-span-8  Panel "Map of your medicines" (graph + legend + edge list)
+Row B:  col-span-12 Panel "Possible interactions" (cards in a 2-col grid inside, own scroll)
+Row C:  col-span-7  Panel "How much and when" (dose explainer, scan button)
+        col-span-5  Panel "Share sheet" (preview lines + download) 
+```
+### Community page composition (lg+)
+```
+PageHeader: "People near you" · subtitle
+Row A:  col-span-5  Panel "Find a clinic" (form on top, results list below with own scroll)
+        col-span-7  Panel "Medication talk": header with med filter dropdown;
+                    inside: 2-col — left top-terms + official-label well, right post list + form
+```
 
 ## Components (RxPlain mapping)
-- **Header:** RxPlain wordmark left, nav (Meds · Community) as text buttons, language selector as an outlined pill, sticky with backdrop blur.
-- **Disclaimer banner:** `bg-md-secondary-container` full-width rounded-3xl strip under the header, Body size, persistent.
-- **Search + med chips:** filled text field; chips are `rounded-full bg-md-secondary-container` with an × text button; max 10.
-- **Interaction cards:** `bg-md-surface-container rounded-3xl p-6` with a 6px left accent in the severity color, a severity chip (label text), the four short paragraphs, and a **Listen** pill button (filled primary, speaker icon + "Listen") top-right.
-- **Graph container:** hero-style `rounded-[48px]` surface container with blur shapes behind; edge labels rendered as text.
-- **Dose Explainer card:** biggest card on the page. `plainDose` at Title size, `maxPerDayLine` below, Listen button prominent, "Where this came from" as an expandable tonal section. **Fail-closed card** uses `bg-md-secondary-container` with an outlined `sev-major` chip reading "Check with your pharmacist" — still no number.
-- **Community → clinics:** list of cards; distance and phone as Body; coverage lines as text chips ("Takes Medicaid · by program rule", "Blue Cross · 2 people confirmed"); `tel:` link as a tonal pill; Listen pill per row.
-- **Community → talk:** top-terms chips in a wrapping row at the top (`rounded-full bg-md-secondary-container`, label + count e.g. "nausea · 12"), selected chip becomes filled primary; posts are surface-container cards; the openFDA adverse-reactions panel is an outlined card labeled "From the label".
-- **FAB:** tertiary, bottom-right on results: "Read all".
-- **Share-sheet PDF:** not styled by this system — plain, high-contrast print layout.
+- **Header:** white, bottom hairline, "Rx" charcoal mark + wordmark, pill nav (active = charcoal), right side: **Read page** (outlined, speaker icon) and language pill select.
+- **Disclaimer:** slim white panel with info icon, 13px text. Not a colored banner.
+- **Listen button:** filled charcoal pill with speaker icon; `size="sm"` inside panel headers; `iconOnly` in dense rows. Every panel that outputs text has one in its header; the share sheet panel and clinic rows too.
+- **Read selection:** selecting any text on the page shows a floating Listen pill next to it (`ReadSelection`, mounted in the layout).
+- **Plain terms:** all label/database text passes through `PlainText`; replaced terms get a dotted underline with the original in the tooltip. Speech uses `plainifyForSpeech`.
+- **Common names:** medicine chips and card titles show the generic with brands: "Ibuprofen · Advil, Motrin" (`lib/plainNames`).
+- **Interaction cards:** dense `Card` with 4px left accent in severity color, title row (pair + `SeverityChip` + Listen iconOnly), then a 2-col grid of the four labeled sections.
+- **Graph panel:** white, edges colored by severity with the word as edge label, legend chips beneath.
+- **Dose explainer:** panel with a two-button entry — **Scan my bottle** (camera/file) and **Type the directions** — then the confirmation well, then the result well. Fail-closed result uses a `StatusPill tone="error"` reading "Check with your pharmacist" and no numbers.
+- **Clinic rows:** dense cards with name, site type in words, distance + address, `tel:` tonal pill, coverage `StatusPill`s (words), Listen iconOnly.
+- **Share sheet panel:** what will print (meds, flagged pairs, dose lines) as `KeyValue` rows + the download button.
 
-## Accessibility overrides (RxPlain must-haves, beyond the original prompt)
-- Body text ≥ 20px; touch targets ≥ 44×44; contrast ≥ 4.5:1 for text (primary `#6750A4` on `#FFFBFE` passes; `md-on-surface-variant` on `md-surface-container` passes).
-- Focus: `focus-visible:ring-2 focus-visible:ring-md-primary focus-visible:ring-offset-2` on everything interactive.
-- Severity, coverage, and status are always words, never color alone.
-- Decorative blur shapes are `aria-hidden`; icon-only buttons have `aria-label`; inputs have visible labels.
-- Keyboard completes the whole main path; the Listen button is reachable by Tab on every card.
-- Reduced motion respected (see Motion).
+## Motion
+`cubic-bezier(0.2,0,0,1)`, 150–250ms, only for color/shadow/opacity. `active:scale-95` on buttons. Reduced-motion media query removes transforms.
+
+## Accessibility (unchanged, mandatory)
+Body ≥ 17px, targets ≥ 40px, contrast ≥ 4.5:1 for text (charcoal on white and `#6B7280` on white both pass), visible focus ring, status = words, `aria-live` on result regions, keyboard-operable tabs and listboxes, no color-only meaning, every Listen control has an `aria-label`.
 
 ## Anti-patterns
-No pure white backgrounds. No rectangular buttons. No heavy drop shadows. No hue changes on hover. No pure black text. No flat, borderless-bottom inputs. No color-only status. No text under 14px. No animation over 500ms.
-
-## Checklist for Cursor
-- [ ] Roboto loaded (400/500/700) via `next/font`
-- [ ] `md-*` and `sev-*` tokens in Tailwind config; no raw hex in components
-- [ ] Background `#FFFBFE`; cards `#F3EDF7`
-- [ ] All buttons/chips `rounded-full`; cards `rounded-3xl`; hero `rounded-[48px]`
-- [ ] Filled text field inputs
-- [ ] Blur shapes in hero + Community header, `aria-hidden`
-- [ ] State-layer hover/active; `active:scale-95`; `cubic-bezier(0.2,0,0,1)`
-- [ ] Body 20px; focus rings; reduced-motion media query
-- [ ] Severity chips show the word
+No purple, no blur shapes, no giant rounded hero, no more than two panels stacked before a horizontal split, no full-width single-column pages on desktop, no color-only status, no text under 13px, no shadows heavier than `shadow-md` at rest.

@@ -15,8 +15,9 @@ Someone searches for their meds (2–10) and gets:
 
 - a **plain-language** summary of possible interaction warnings (literacy access)
 - a **simple visual map** instead of a wall of label text
-- a **dose explainer** — "take 1 tablet, twice a day, with food" — that only restates the directions on their own bottle after checking them against the official label, and **fails closed** (no number shown) if it can't verify (safety)
-- **click-to-listen** on every card, dose line, and clinic result via Grok Voice, with ElevenLabs as a fallback for languages Grok Voice doesn't cover (vision / auditory / language access)
+- a **dose explainer** — scan the bottle with your camera or type the directions — "take 1 tablet, twice a day, with food" — that only restates the directions on their own bottle after checking them against the official label, and **fails closed** (no number shown) if it can't verify (safety)
+- **click-to-listen** on every card, dose line, and clinic result, a **Read page** control, and a **Listen to selection** pill on any highlighted text, via Grok Voice, with ElevenLabs as a fallback for languages Grok Voice doesn't cover (vision / auditory / language access)
+- **plain names and plain words**: medicines show their common brand names ("Ibuprofen · Advil, Motrin") and label jargon is swapped for everyday phrases ("anticoagulant" → "blood thinner") on screen, in audio, and in the PDF, with the original term one hover away
 - a **Community** tab: nearby low-cost clinics with an honest insurance signal, plus anonymous peer talk about medications and side effects with the most-mentioned terms on top (rural / isolation access)
 - a **one-page share sheet** they can bring to an appointment or show a caregiver (advocacy access)
 
@@ -24,7 +25,7 @@ This is an **educational accessibility** product, not medical advice and not a c
 
 **UI accessibility baseline (MVP):** large readable type, high contrast, keyboard-usable search and actions, visible focus states, severity not conveyed by color alone (include text labels), and a persistent disclaimer. Voice is a core path, not a gimmick.
 
-For the full Cursor build instruction, see [`CURSOR_MASTER_PROMPT.md`](CURSOR_MASTER_PROMPT.md). Visual style is **Material You (Material Design 3)**, purple seed, Roboto, pill buttons, tonal surfaces — tokens and rules in [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md), adapted from [designprompts.dev/material-design](https://www.designprompts.dev/material-design) with larger body text and mandatory reduced-motion for accessibility.
+For the full Cursor build instruction, see [`CURSOR_MASTER_PROMPT.md`](CURSOR_MASTER_PROMPT.md). Visual style is a **clean analytics dashboard** (white panels, hairline borders, charcoal buttons, KPI tiles, grid layout) — tokens and layout rules in [`DESIGN_SYSTEM.md`](DESIGN_SYSTEM.md) rev 3.
 
 **Legal:** [Privacy Policy](PRIVACY.md) · [Terms and Conditions](TERMS.md) — link both in the app footer; include a short consent line on first use (educational demo only).
 
