@@ -23,8 +23,8 @@ export function CommunityWorkspace() {
         }
       />
       <div className="grid grid-cols-12 gap-6 items-start">
-        <ClinicFinder className="col-span-12 lg:col-span-5" />
-        <MedicationTalk className="col-span-12 lg:col-span-7" />
+        <MedicationTalk className="col-span-12" />
+        <ClinicFinder className="col-span-12" />
       </div>
     </div>
   );

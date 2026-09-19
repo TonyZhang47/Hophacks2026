@@ -9,31 +9,32 @@ const config: Config = {
     extend: {
       colors: {
         md: {
-          background: "#F4F5F7", // page canvas
-          "on-background": "#111318", // primary text
-          primary: "#111318", // charcoal buttons / active states
+          background: "#FBFAF7", // page canvas
+          "on-background": "#332D26", // primary text
+          primary: "#332D26", // charcoal buttons / active states
           "on-primary": "#FFFFFF",
-          "secondary-container": "#F1F2F4", // chips, tonal buttons
-          "on-secondary-container": "#111318",
-          tertiary: "#2563EB", // accent (charts, links, FAB)
+          "secondary-container": "#EEEAE3", // chips, tonal buttons
+          "on-secondary-container": "#332D26",
+          tertiary: "#96664D", // accent (charts, links, FAB)
           "on-tertiary": "#FFFFFF",
           "surface-container": "#FFFFFF", // panels / cards
-          "surface-container-low": "#F8F9FB", // inputs, nested wells
-          outline: "#E4E6EA", // hairline borders
-          "outline-strong": "#C9CCD2",
-          "on-surface-variant": "#6B7280", // secondary text, icons
-          error: "#DC2626",
-          success: "#16A34A",
-          warning: "#D97706",
+          "surface-container-low": "#F6F3ED", // inputs, nested wells
+          outline: "#E5DED3", // hairline borders
+          "outline-strong": "#C8BFB1",
+          "on-surface-variant": "#766E63", // secondary text, icons
+          error: "#9D523A",
+          success: "#585F4C",
+          warning: "#846B4C",
         },
         sev: {
-          major: "#DC2626",
-          moderate: "#D97706",
-          minor: "#2563EB",
-          unknown: "#6B7280",
+          major: "#9D523A",
+          moderate: "#846B4C",
+          minor: "#766E63",
+          unknown: "#766E63",
         },
       },
       fontFamily: {
+        serif: ["Georgia", "Times New Roman", "serif"],
         sans: ["var(--font-inter)", "Inter", "system-ui", "sans-serif"],
       },
       fontSize: {

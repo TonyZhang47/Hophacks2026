@@ -20,6 +20,7 @@ export interface ClinicFilters {
 }
 
 export interface PostQuery {
+  name?: string;
   rxcui?: string;
   term?: string;
   limit: number;
@@ -64,5 +65,5 @@ export interface Db {
   // Community
   listPosts(q: PostQuery): Promise<CommunityPost[]>;
   createPost(post: CommunityPost): Promise<CommunityPost>;
-  topTerms(rxcui: string | undefined, limit: number): Promise<TopTerm[]>;
+  topTerms(rxcui: string | undefined, limit: number, name?: string): Promise<TopTerm[]>;
 }

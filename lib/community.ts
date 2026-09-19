@@ -23,6 +23,7 @@ export class PostRejectedError extends Error {
 }
 
 export interface ListPostsInput {
+  name?: string;
   rxcui?: string;
   term?: string;
   limit?: number;
@@ -32,6 +33,7 @@ export interface ListPostsInput {
 export async function listPosts(input: ListPostsInput = {}): Promise<CommunityPost[]> {
   const db = await getDb();
   return db.listPosts({
+    name: input.name?.trim().toLowerCase() || undefined,
     rxcui: input.rxcui?.trim() || undefined,
     term: input.term?.trim().toLowerCase().slice(0, 40) || undefined,
     limit: Math.min(Math.max(input.limit ?? 20, 1), 50),
@@ -75,12 +77,12 @@ const termsCache = new TtlCache<TopTerm[]>(60_000);
 let termsGeneration = 0;
 const cacheKey = (rxcui?: string) => `terms:${termsGeneration}:${rxcui ?? "*"}`;
 
-export async function topTerms(rxcui?: string, limit = 15): Promise<TopTerm[]> {
-  const key = cacheKey(rxcui);
+export async function topTerms(rxcui?: string, limit = 15, name?: string): Promise<TopTerm[]> {
+  const key = cacheKey(rxcui) + ":" + (name?.trim().toLowerCase() || "");
   const hit = termsCache.get(key);
   if (hit) return hit.slice(0, limit);
   const db = await getDb();
-  const terms = await db.topTerms(rxcui?.trim() || undefined, Math.max(limit, 15));
+  const terms = await db.topTerms(rxcui?.trim() || undefined, Math.max(limit, 15), name);
   termsCache.set(key, terms);
   return terms.slice(0, limit);
 }

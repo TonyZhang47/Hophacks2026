@@ -2,8 +2,9 @@ import { Info } from "lucide-react";
 
 export function DisclaimerBanner() {
   return (
-    <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+    <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 mt-4">
       <p
+        data-page-disclaimer
         role="note"
         className="panel flex items-start gap-3 px-4 py-3 text-meta text-md-on-surface-variant"
       >

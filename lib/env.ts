@@ -28,7 +28,8 @@ export function modeSummary() {
   return {
     db: isSnowflakeConfigured() ? "snowflake" : "memory-seed",
     llm: isXaiConfigured() ? "grok" : "template",
-    ttsPrimary: isXaiConfigured() ? "grok-voice" : "browser-speech",
-    ttsSecondary: isElevenConfigured() ? "elevenlabs" : "none",
+    ttsPrimary: isXaiConfigured() ? "grok-voice" : "unavailable",
+    ttsSecondary: isElevenConfigured() ? "elevenlabs" : "unavailable",
+    speech: { en: isXaiConfigured() ? "grok" : "unavailable", es: isElevenConfigured() ? "elevenlabs" : "unavailable" },
   };
 }

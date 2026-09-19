@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { CameraCapture } from "@/components/dose/CameraCapture";
+import { PhonePairing } from "@/components/dose/PhonePairing";
+import { downscale } from "@/lib/imageUpload";
 import { Camera, Image as ImageIcon, Loader2 } from "lucide-react";
 import { useLang } from "@/components/LanguageContext";
 import { Button } from "@/components/ui/Button";
@@ -13,74 +16,35 @@ export interface ScanBottleProps {
 
 type State = "idle" | "reading" | "done" | "error";
 
-const MAX_EDGE = 1600;
-const JPEG_QUALITY = 0.85;
-
 const T = {
   en: {
     scan: "Scan my bottle",
     choose: "Choose a photo",
-    help: "Point the camera at the directions on the label. We only read the text; the photo is not saved.",
+    help: "Point the camera at the directions on the label. Photos are sent to Grok to read the label. Cover your name and other personal details first.",
     reading: "Reading the label…",
     done: "Label read. Check the directions below.",
-    noProvider: "Scanning needs the Grok key. Type the directions instead.",
-    unreadable: "We couldn't read that. Try again with more light, or type the directions.",
+    noProvider:
+      "Bottle reading is unavailable right now. Type the directions instead.",
+    unreadable:
+      "We couldn't read that. Try again with more light, or type the directions.",
     failed: "Scanning didn't work just now. Type the directions instead.",
     preview: "Photo of your label",
   },
   es: {
     scan: "Escanear mi frasco",
     choose: "Elegir una foto",
-    help: "Apunte la cámara a las indicaciones de la etiqueta. Solo leemos el texto; la foto no se guarda.",
+    help: "Apunte la cámara a las indicaciones de la etiqueta. La foto se envía a Grok para leer la etiqueta. Cubra primero su nombre y otros datos personales.",
     reading: "Leyendo la etiqueta…",
     done: "Etiqueta leída. Revise las indicaciones abajo.",
-    noProvider: "Para escanear se necesita la clave de Grok. Escriba las indicaciones en su lugar.",
-    unreadable: "No pudimos leerla. Inténtelo con más luz o escriba las indicaciones.",
-    failed: "El escaneo no funcionó ahora. Escriba las indicaciones en su lugar.",
+    noProvider:
+      "La lectura de etiquetas no está disponible ahora. Escriba las indicaciones en su lugar.",
+    unreadable:
+      "No pudimos leerla. Inténtelo con más luz o escriba las indicaciones.",
+    failed:
+      "El escaneo no funcionó ahora. Escriba las indicaciones en su lugar.",
     preview: "Foto de su etiqueta",
   },
 } as const;
-
-/** Downscale to MAX_EDGE on the long side and re-encode as JPEG so uploads stay small on phones. */
-async function downscale(file: File): Promise<string> {
-  let source: ImageBitmap | HTMLImageElement;
-  let width: number;
-  let height: number;
-  if (typeof createImageBitmap === "function") {
-    // `imageOrientation: "from-image"` applies the EXIF rotation phones write.
-    const bmp = await createImageBitmap(file, { imageOrientation: "from-image" } as ImageBitmapOptions).catch(() =>
-      createImageBitmap(file),
-    );
-    source = bmp;
-    width = bmp.width;
-    height = bmp.height;
-  } else {
-    const url = URL.createObjectURL(file);
-    try {
-      source = await new Promise<HTMLImageElement>((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.onerror = () => reject(new Error("decode"));
-        img.src = url;
-      });
-    } finally {
-      URL.revokeObjectURL(url);
-    }
-    width = source.naturalWidth;
-    height = source.naturalHeight;
-  }
-  const scale = Math.min(1, MAX_EDGE / Math.max(width, height));
-  const w = Math.max(1, Math.round(width * scale));
-  const h = Math.max(1, Math.round(height * scale));
-  const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("canvas");
-  ctx.drawImage(source, 0, 0, w, h);
-  if ("close" in source) source.close();
-  return canvas.toDataURL("image/jpeg", JPEG_QUALITY);
-}
 
 /**
  * "Scan my bottle": camera (or file) → client-side downscale → POST /api/ocr/prescription →
@@ -90,6 +54,7 @@ export function ScanBottle({ onText, disabled }: ScanBottleProps) {
   const { lang } = useLang();
   const t = T[lang];
   const id = useId();
+  const [cameraOpen, setCameraOpen] = useState(false);
   const cameraRef = useRef<HTMLInputElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -99,8 +64,8 @@ export function ScanBottle({ onText, disabled }: ScanBottleProps) {
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
-  async function handleFile(file: File | undefined) {
-    if (!file) return;
+  async function handleFile(file: File | undefined, received?: string) {
+    if (!file && !received) return;
     abortRef.current?.abort();
     const ctrl = new AbortController();
     abortRef.current = ctrl;
@@ -108,7 +73,7 @@ export function ScanBottle({ onText, disabled }: ScanBottleProps) {
     setMessage(t.reading);
     setPreview(null);
     try {
-      const dataUrl = await downscale(file);
+      const dataUrl = received ?? (await downscale(file!));
       setPreview(dataUrl);
       const res = await fetch("/api/ocr/prescription", {
         method: "POST",
@@ -147,17 +112,22 @@ export function ScanBottle({ onText, disabled }: ScanBottleProps) {
 
   return (
     <div className="rounded-xl bg-md-surface-container-low p-4 flex flex-col gap-3 h-full">
+      <h3 className="font-serif text-2xl">{t.scan}</h3>
       <div className="flex flex-wrap items-center gap-2">
         <Button
           type="button"
           size="md"
-          onClick={() => cameraRef.current?.click()}
+          onClick={() => setCameraOpen(true)}
           disabled={disabled || busy}
           aria-describedby={`${id}-help`}
           aria-busy={busy}
         >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Camera className="h-4 w-4" aria-hidden="true" />}
-          {busy ? t.reading : t.scan}
+          {busy ? (
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          ) : (
+            <Camera className="h-4 w-4" aria-hidden="true" />
+          )}
+          {busy ? t.reading : lang === "es" ? "Capturar aquí" : "Capture here"}
         </Button>
         <Button
           type="button"
@@ -171,6 +141,16 @@ export function ScanBottle({ onText, disabled }: ScanBottleProps) {
           {t.choose}
         </Button>
       </div>
+      {cameraOpen && (
+        <CameraCapture
+          onCapture={(file) => void handleFile(file)}
+          onClose={() => setCameraOpen(false)}
+        />
+      )}
+      <PhonePairing
+        disabled={disabled || busy}
+        onImage={(image) => void handleFile(undefined, image)}
+      />
       <p id={`${id}-help`} className="text-meta text-md-on-surface-variant">
         {t.help}
       </p>
@@ -196,7 +176,11 @@ export function ScanBottle({ onText, disabled }: ScanBottleProps) {
         onChange={(e) => onChange(e.currentTarget)}
       />
 
-      <div aria-live="polite" aria-atomic="true" className="flex items-center gap-3 min-h-6">
+      <div
+        aria-live="polite"
+        aria-atomic="true"
+        className="flex items-center gap-3 min-h-6"
+      >
         {preview && (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -206,7 +190,11 @@ export function ScanBottle({ onText, disabled }: ScanBottleProps) {
           />
         )}
         {message && (
-          <p className={`text-meta ${state === "error" ? "text-md-error" : "text-md-on-surface-variant"}`}>{message}</p>
+          <p
+            className={`text-meta ${state === "error" ? "text-md-error" : "text-md-on-surface-variant"}`}
+          >
+            {message}
+          </p>
         )}
       </div>
     </div>

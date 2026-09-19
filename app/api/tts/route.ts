@@ -40,7 +40,7 @@ export async function POST(req: Request) {
     });
   } catch (e) {
     if (e instanceof NoVoiceProvider) {
-      return error("no-voice-provider", 503, { hint: "Set XAI_API_KEY (primary) or ELEVENLABS_API_KEY (secondary)" });
+      return error("no-voice-provider", 503, { hint: "Configure Grok for English or ElevenLabs for Spanish." });
     }
     if (e instanceof LanguageNotAvailable) {
       return error("language-not-available", 422, { hint: "This language is not available yet.", lang });

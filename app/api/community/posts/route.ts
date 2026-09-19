@@ -8,6 +8,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const Query = z.object({
+  name: z.string().trim().max(100).optional(),
   rxcui: z.string().trim().regex(/^\d{1,12}$/).optional(),
   term: z.string().trim().min(1).max(40).optional(),
   limit: z.coerce.number().int().min(1).max(50).optional(),

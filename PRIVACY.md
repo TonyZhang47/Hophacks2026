@@ -16,7 +16,7 @@ RxPlain lets you search medications, view plain-language summaries grounded in p
 ### Information you provide
 - Medication names you search or select (and related identifiers such as RxCUI from public databases)
 - Optional first name if you enter one for a PDF export
-- Optional prescription images if you use photo upload (stretch feature)
+- Optional prescription images if you use photo upload, direct camera capture, or phone pairing
 
 ### Information processed automatically
 - Basic technical logs needed to run the demo (e.g. request errors, rate-limit handling)
@@ -27,7 +27,7 @@ Medication lists can imply health status. Treat anything you enter as **sensitiv
 
 ## 4. How we use information
 - To look up drug names and interaction evidence (RxNorm, openFDA, DDInter)
-- To generate plain-language explanations and spoken audio via xAI Grok APIs
+- To generate plain-language explanations and spoken English audio via xAI Grok APIs, and spoken Spanish audio via ElevenLabs
 - To generate a PDF you download
 - To keep the service working (caching, rate limits, debugging during the hackathon)
 
@@ -48,7 +48,7 @@ Those providers process data under their own terms and policies. Do not submit i
 
 ## 6. Storage and retention
 - Hackathon default: anonymous or local UI state plus optional Snowflake caches/sessions without login.
-- Prescription photos (if enabled): process for the request only; do not store longer than needed unless you explicitly opt in to save (default: do not save).
+- Prescription photos: direct uploads are processed for the OCR request. Phone-paired photos are held temporarily in memory for transfer as described below; they are not saved to a photo library.
 - Snowflake: interaction seed data and caches; purge demo session rows after the event when practical.
 - Server logs: keep only as long as needed for debugging during the event, then discard.
 - We do not operate a production patient database or user accounts.
@@ -76,3 +76,10 @@ We may update this policy during or after the hackathon. The “Last updated” 
 ## 13. Contact
 For questions about this demo’s privacy practices during HopHacks 2026, contact the RxPlain team via the project repository:
 https://github.com/TonyZhang47/Hophacks2026
+
+
+## Local calendar and paired bottle capture
+
+The medicine calendar stores the medicine names, scheduled times, taken status, and notes you enter in this browser’s local storage. It does not sync these entries to an account or send background reminders. Delete entries in the calendar or clear this site’s browser storage to remove them.
+
+Phone capture uses a temporary pairing link. The server holds one compressed label photo in memory for transfer to the computer session, then removes it when that session receives it, closes the pairing, or the ten-minute link expires. Scanning sends the photo to xAI/Grok to transcribe label directions; cover personal details before submitting. Transcribed directions remain subject to your confirmation. English read-aloud text is sent to xAI/Grok; Spanish read-aloud text is sent to ElevenLabs. Provider processing is governed by their policies.

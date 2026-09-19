@@ -18,7 +18,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem("rxplain.lang");
-      if (saved === "en" || saved === "es") setLangState(saved);
+      if (saved === "en" || saved === "es") { setLangState(saved); document.documentElement.lang = saved; }
     } catch {}
   }, []);
 

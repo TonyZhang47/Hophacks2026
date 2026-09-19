@@ -70,7 +70,7 @@ async function callEleven(text: string, modelId: string, signal: AbortSignal): P
       "Content-Type": "application/json",
       Accept: "audio/mpeg",
     },
-    body: JSON.stringify({ text, model_id: modelId }),
+    body: JSON.stringify({ text, model_id: modelId, language_code: "es" }),
     signal,
     cache: "no-store",
   });

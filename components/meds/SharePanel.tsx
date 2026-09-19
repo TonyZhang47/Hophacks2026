@@ -16,25 +16,25 @@ const STRINGS = {
     title: "Share sheet",
     subtitle: "One page to show a caregiver or bring to your next visit.",
     meds: "Medicines",
-    flagged: "Flagged pairs",
+    flagged: "Food notes",
     doses: "Dose lines",
     clinic: "Nearest clinic",
     none: "—",
     listen: "Read preview",
     speak: (m: number, f: number, d: number) =>
-      `The share sheet will include ${m} medicines, ${f} flagged pairs, and ${d} dose lines. No clinic is attached.`,
+      `The share sheet will include ${m} medicines, ${f} food notes, and ${d} dose lines. No clinic is attached.`,
   },
   es: {
     title: "Hoja para compartir",
     subtitle: "Una página para mostrar a un cuidador o llevar a su próxima visita.",
     meds: "Medicamentos",
-    flagged: "Pares señalados",
+    flagged: "Notas de alimentos",
     doses: "Líneas de dosis",
     clinic: "Clínica más cercana",
     none: "—",
     listen: "Leer resumen",
     speak: (m: number, f: number, d: number) =>
-      `La hoja para compartir incluirá ${m} medicamentos, ${f} pares señalados y ${d} líneas de dosis. No hay clínica adjunta.`,
+      `La hoja para compartir incluirá ${m} medicamentos, ${f} notas de alimentos y ${d} líneas de dosis. No hay clínica adjunta.`,
   },
 };
 

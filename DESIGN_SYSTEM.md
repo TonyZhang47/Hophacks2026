@@ -1,3 +1,5 @@
+> **Current visual direction:** Warm paper (#FBFAF7), brown ink (#332D26), muted neutral surfaces, and a restrained terracotta accent. Georgia serif headings with Inter body text, spacious centered introduction, simple bordered panels, and a labeled medicine–food map. Inspired by LinkLetter. Current implementation lives in `app/globals.css` and `tailwind.config.ts`; the earlier design notes below are historical.
+
 # RxPlain design system — rev 3, analytics-dashboard style
 
 Rev 3 replaces the Material You look (rev 2) with the **clean analytics-dashboard** aesthetic the team chose from a reference shot: white panels on a soft gray canvas, hairline borders, charcoal primary buttons, small uppercase section labels with an icon, big KPI numbers with green/red delta pills, dropdown filters in panel corners, and a lot of breathing room. **Token names are unchanged from rev 2 (`md-*`, `sev-*`) so components keep working; only the values changed.** When this file and any older prompt text disagree, this file wins.

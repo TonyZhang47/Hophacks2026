@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   const { rxcui, name, limit } = parsed.data;
 
   const [terms, official] = await Promise.all([
-    topTerms(rxcui, limit ?? 15),
+    topTerms(rxcui, limit ?? 15, name),
     rxcui ? resolveOfficial(rxcui, name) : Promise.resolve<string | null>(null),
   ]);
   return json<{ terms: TopTerm[]; official: string | null }>({ terms, official });

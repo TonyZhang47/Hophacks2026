@@ -154,6 +154,7 @@ export class MemoryDb implements Db {
   async listPosts(q: PostQuery) {
     let rows = this.posts.filter((p) => p.moderation_status === "approved");
     if (q.rxcui) rows = rows.filter((p) => p.rxcui === q.rxcui);
+    else if (q.name) rows = rows.filter(p=>p.drug_name.toLowerCase()===q.name!.toLowerCase());
     if (q.term) {
       const t = q.term.toLowerCase();
       rows = rows.filter((p) => p.body.toLowerCase().includes(t) || p.side_effect_tags.includes(t as never));
@@ -166,11 +167,12 @@ export class MemoryDb implements Db {
     this.posts.push(post);
     return post;
   }
-  async topTerms(rxcui: string | undefined, limit: number): Promise<TopTerm[]> {
+  async topTerms(rxcui: string | undefined, limit: number, name?: string): Promise<TopTerm[]> {
     const counts = new Map<string, number>();
     for (const p of this.posts) {
       if (p.moderation_status !== "approved") continue;
       if (rxcui && p.rxcui !== rxcui) continue;
+      if (!rxcui && name && p.drug_name.toLowerCase() !== name.toLowerCase()) continue;
       const seen = new Set<string>();
       for (const w of [...tokenize(p.body), ...p.side_effect_tags]) {
         if (seen.has(w)) continue;

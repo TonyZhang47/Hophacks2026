@@ -1,5 +1,7 @@
 # RxPlain
 
+> **Current build:** See [CURRENT_FEATURES.md](CURRENT_FEATURES.md) for the medicine–food workflow, camera/QR capture, local calendar, and strict English/Grok + Spanish/ElevenLabs speech routing. The original hackathon plan below describes earlier behavior.
+
 **HopHacks 2026 — [Bloomberg] Most Philanthropic Hack.** A free public-good tool so people shut out by dense medication labels can **understand** what they’re taking — in plain language they can see, hear, and share.
 
 Built with **Cursor**. Planning assisted by **Grok Bot** (team workflow only — not a runtime API).

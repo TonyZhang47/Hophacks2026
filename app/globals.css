@@ -10,7 +10,10 @@
     @apply bg-md-background text-md-on-background font-sans text-body antialiased;
     font-feature-settings: "cv11", "ss01", "tnum";
   }
-  h1, h2, h3, h4 {
+  h1,
+  h2,
+  h3,
+  h4 {
     @apply font-semibold tracking-tight;
   }
   :focus-visible {
@@ -31,7 +34,7 @@
 @layer components {
   /* Dashboard panel primitives (see DESIGN_SYSTEM.md rev 3) */
   .panel {
-    @apply bg-md-surface-container border border-md-outline rounded-2xl shadow-sm;
+    @apply bg-md-surface-container border border-md-outline rounded-2xl;
   }
   .eyebrow {
     @apply uppercase text-md-on-surface-variant;
@@ -40,14 +43,31 @@
     font-weight: 600;
     letter-spacing: 0.08em;
   }
-  .prose-md h1 { @apply text-headline mb-4 mt-8; }
-  .prose-md h2 { @apply text-title mb-3 mt-8; }
-  .prose-md h3 { @apply text-body font-semibold mb-2 mt-6; }
-  .prose-md p, .prose-md li { @apply text-body mb-3 text-md-on-surface-variant; }
-  .prose-md ul { @apply list-disc pl-6 mb-4; }
-  .prose-md ol { @apply list-decimal pl-6 mb-4; }
-  .prose-md a { @apply text-md-tertiary underline underline-offset-4; }
-  .prose-md strong { @apply text-md-on-background font-semibold; }
+  .prose-md h1 {
+    @apply text-headline mb-4 mt-8;
+  }
+  .prose-md h2 {
+    @apply text-title mb-3 mt-8;
+  }
+  .prose-md h3 {
+    @apply text-body font-semibold mb-2 mt-6;
+  }
+  .prose-md p,
+  .prose-md li {
+    @apply text-body mb-3 text-md-on-surface-variant;
+  }
+  .prose-md ul {
+    @apply list-disc pl-6 mb-4;
+  }
+  .prose-md ol {
+    @apply list-decimal pl-6 mb-4;
+  }
+  .prose-md a {
+    @apply text-md-tertiary underline underline-offset-4;
+  }
+  .prose-md strong {
+    @apply text-md-on-background font-semibold;
+  }
   /* Plain-term replacements: dotted underline, original term in the tooltip */
   .plain-term {
     @apply underline decoration-dotted decoration-md-outline-strong underline-offset-4 cursor-help;
@@ -55,11 +75,165 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
     transform: none !important;
+  }
+}
+
+/* Warm paper, ink, and one terracotta accent — inspired by LinkLetter. */
+.editorial-hero {
+  text-align: center;
+  padding: 80px 16px 56px;
+}
+.editorial-hero h1 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  font-size: clamp(3rem, 6vw, 5.1rem);
+  line-height: 1.06;
+  letter-spacing: -0.055em;
+}
+.editorial-hero h1 em {
+  font-weight: 400;
+  font-style: normal;
+  position: relative;
+}
+.editorial-hero h1 em::after {
+  content: "";
+  position: absolute;
+  bottom: -10px;
+  left: 1%;
+  width: 98%;
+  height: 7px;
+  border-radius: 50%;
+  border-top: 5px solid #ab7256;
+  transform: rotate(-1deg);
+  opacity: 0.8;
+}
+.hero-description {
+  max-width: 540px;
+  margin: 32px auto 24px;
+  color: #766e63;
+  line-height: 1.65;
+}
+.hero-button {
+  display: inline-flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 22px;
+  background: #332d26;
+  color: white;
+  border-radius: 10px;
+  font-size: 15px;
+}
+.hero-button:hover {
+  background: #51473a;
+}
+.hero-secondary {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 18px;
+  font-size: 15px;
+}
+.severity-tile {
+  padding: 18px;
+  border-top: 1px solid #c8bfb1;
+}
+.severity-tile .panel {
+  border: 0;
+  padding: 0;
+  background: none;
+  border-radius: 0;
+}
+.food-map {
+  background-color: #f6f3ed;
+  background-image: radial-gradient(#c8bfb155 1px, transparent 1px);
+  background-size: 16px 16px;
+}
+.map-node {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  min-height: 66px;
+  padding: 14px 16px;
+  border: 1px solid #ddd4c7;
+  border-radius: 12px;
+  background: #fffdf8;
+  box-shadow: 0 3px 0 #e5ded355;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.map-node svg {
+  flex-shrink: 0;
+}
+.map-line {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2px;
+  border-top: 1px solid #ad9781;
+}
+.map-line svg {
+  background: #f6f3ed;
+  position: relative;
+  top: -1px;
+  color: #96664d;
+}
+.map-line-unknown {
+  border-top-style: dashed;
+}
+.map-connection:hover .map-node,
+.map-connection[aria-pressed="true"] .map-node {
+  border-color: #96664d;
+}
+.food-result:focus {
+  outline: 2px solid #96664d;
+  outline-offset: 3px;
+}
+.calendar-day {
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  font-size: 14px;
+}
+.calendar-day:hover {
+  background: #eeeae3;
+}
+.calendar-day.today {
+  border-color: #c8bfb1;
+}
+.calendar-day.selected {
+  background: #332d26;
+  color: #fff;
+}
+@media (max-width: 640px) {
+  .editorial-hero {
+    padding: 44px 0 30px;
+  }
+  .map-node {
+    padding: 10px;
+    font-size: 12px;
+    flex-wrap: wrap;
+  }
+  .calendar-day {
+    min-height: 48px;
+  }
+  header nav {
+    order: 3;
+    width: 100%;
+    justify-content: center;
   }
 }

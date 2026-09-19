@@ -125,9 +125,9 @@ export function ShareSheetDocument({ data, date }: { data: ShareSheetData; date:
           </View>
         )}
 
-        <Text style={s.h2}>Possible interactions to ask about</Text>
+        <Text style={s.h2}>Medicine and food notes to ask about</Text>
         {cards.length === 0 ? (
-          <Text style={s.muted}>No interaction pairs were flagged for this list. That does not guarantee the medicines are safe together — ask your pharmacist.</Text>
+          <Text style={s.muted}>No food notes have been added to this sheet. Ask your pharmacist about foods and drinks for your medicines.</Text>
         ) : (
           cards.map((c, i) => <InteractionBlock key={`${c.drugA}-${c.drugB}-${i}`} card={c} />)
         )}

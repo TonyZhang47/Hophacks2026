@@ -206,6 +206,7 @@ export class SnowflakeDb implements Db {
       where.push("rxcui = ?");
       binds.push(q.rxcui);
     }
+    if (!q.rxcui && q.name) { where.push("LOWER(drug_name) = ?"); binds.push(q.name.toLowerCase()); }
     if (q.term) {
       where.push("(CONTAINS(LOWER(body), ?) OR ARRAY_CONTAINS(?::VARIANT, side_effect_tags))");
       binds.push(q.term.toLowerCase(), q.term.toLowerCase());
@@ -233,22 +234,22 @@ export class SnowflakeDb implements Db {
     );
     return post;
   }
-  async topTerms(rxcui: string | undefined, limit: number): Promise<TopTerm[]> {
+  async topTerms(rxcui: string | undefined, limit: number, name?: string): Promise<TopTerm[]> {
     const stop = [...STOP_WORDS].map((w) => `'${w}'`).join(",");
     const rows = await query<any>(
       `WITH words AS (
          SELECT post_id, LOWER(REGEXP_REPLACE(w.value, '[^a-z0-9]', '')) AS term
          FROM ${fqn("COMMUNITY_POSTS")} p, LATERAL SPLIT_TO_TABLE(LOWER(p.body), ' ') w
-         WHERE p.moderation_status = 'approved' ${rxcui ? "AND p.rxcui = ?" : ""}
+         WHERE p.moderation_status = 'approved' ${rxcui ? "AND p.rxcui = ?" : name ? "AND LOWER(p.drug_name) = ?" : ""}
          UNION ALL
          SELECT post_id, t.value::STRING AS term
          FROM ${fqn("COMMUNITY_POSTS")} p, LATERAL FLATTEN(input => p.side_effect_tags) t
-         WHERE p.moderation_status = 'approved' ${rxcui ? "AND p.rxcui = ?" : ""}
+         WHERE p.moderation_status = 'approved' ${rxcui ? "AND p.rxcui = ?" : name ? "AND LOWER(p.drug_name) = ?" : ""}
        )
        SELECT term, COUNT(DISTINCT post_id) AS cnt FROM words
        WHERE LENGTH(term) >= 3 AND term NOT IN (${stop}) AND NOT REGEXP_LIKE(term, '^[0-9]+$')
        GROUP BY term ORDER BY cnt DESC, term LIMIT ?`,
-      rxcui ? [rxcui, rxcui, limit] : [limit],
+      rxcui ? [rxcui, rxcui, limit] : name ? [name.toLowerCase(), name.toLowerCase(), limit] : [limit],
     );
     return rows.map((raw) => {
       const r = lower(raw);

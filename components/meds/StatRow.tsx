@@ -1,5 +1,6 @@
 "use client";
 
+import { SEVERITY_HELP } from "@/lib/food";
 import { StatTile } from "@/components/ui/Panel";
 import { StatusPill } from "@/components/ui/SeverityChip";
 import { useLang } from "@/components/LanguageContext";
@@ -18,7 +19,12 @@ const ORDER: Severity[] = ["major", "moderate", "minor", "unknown"];
 
 const STRINGS = {
   en: {
-    label: { major: "Major", moderate: "Moderate", minor: "Minor", unknown: "Unknown" } as Record<Severity, string>,
+    label: {
+      major: "Major",
+      moderate: "Moderate",
+      minor: "Minor",
+      unknown: "Unknown",
+    } as Record<Severity, string>,
     meds: "Medicines",
     none: "none found",
     of: (n: number, max: number) => `${n} of ${max}`,
@@ -28,7 +34,12 @@ const STRINGS = {
         : `${n} medicines listed. No check has run yet.`,
   },
   es: {
-    label: { major: "Mayores", moderate: "Moderadas", minor: "Menores", unknown: "Desconocidas" } as Record<Severity, string>,
+    label: {
+      major: "Mayores",
+      moderate: "Moderadas",
+      minor: "Menores",
+      unknown: "Desconocidas",
+    } as Record<Severity, string>,
     meds: "Medicamentos",
     none: "ninguna",
     of: (n: number, max: number) => `${n} de ${max}`,
@@ -50,16 +61,26 @@ export function StatRow({ counts, medCount, maxMeds }: StatRowProps) {
         {ORDER.map((sev) => {
           const n = counts ? counts[sev] : null;
           return (
-            <StatTile
-              key={sev}
-              label={t.label[sev]}
-              tone={sev}
-              value={n === null ? "—" : n}
-              pill={n === 0 ? <StatusPill tone="success">{t.none}</StatusPill> : undefined}
-            />
+            <div key={sev} className="severity-tile" data-page-read>
+              <StatTile
+                label={t.label[sev]}
+                tone={sev}
+                value={n === null ? "—" : n}
+                pill={undefined}
+              />
+              <p className="text-meta text-md-on-surface-variant mt-2">
+                {SEVERITY_HELP[lang][sev]}
+              </p>
+            </div>
           );
         })}
-        <StatTile label={t.meds} value={medCount} pill={<StatusPill tone="neutral">{t.of(medCount, maxMeds)}</StatusPill>} />
+        <StatTile
+          label={t.meds}
+          value={medCount}
+          pill={
+            <StatusPill tone="neutral">{t.of(medCount, maxMeds)}</StatusPill>
+          }
+        />
       </div>
       <p className="sr-only" aria-live="polite">
         {t.live(counts, medCount)}

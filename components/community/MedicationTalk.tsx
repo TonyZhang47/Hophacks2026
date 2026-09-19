@@ -1,6 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useId, useState, type FormEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useState,
+  useRef,
+  type FormEvent,
+} from "react";
+import { MedicinePicker } from "@/components/community/MedicinePicker";
 import { MessageSquare, Send } from "lucide-react";
 import commonMeds from "@/data/common_meds.json";
 import { Button } from "@/components/ui/Button";
@@ -11,22 +19,43 @@ import { Panel, PanelHeader } from "@/components/ui/Panel";
 import { PlainText } from "@/components/ui/PlainText";
 import { Select, TextArea } from "@/components/ui/TextField";
 import { shortName } from "@/lib/plainNames";
-import { SIDE_EFFECT_TAGS, type CommunityPost, type Med, type SideEffectTag, type TopTerm } from "@/lib/types";
+import {
+  SIDE_EFFECT_TAGS,
+  type CommunityPost,
+  type Med,
+  type SideEffectTag,
+  type TopTerm,
+} from "@/lib/types";
 
 const HANDLE_KEY = "rxplain.community.handle";
-const MEDWATCH = "https://www.fda.gov/safety/medwatch-fda-safety-information-and-adverse-event-reporting-program";
+const MEDWATCH =
+  "https://www.fda.gov/safety/medwatch-fda-safety-information-and-adverse-event-reporting-program";
 const POST_MAX = 500;
 
 /** Medicines with seeded posts; listed first in the filter. */
-const SEEDED_RXCUI = ["6809", "5640", "11289", "29046", "36437", "17767", "83367", "7646"];
+const SEEDED_RXCUI = [
+  "6809",
+  "5640",
+  "11289",
+  "29046",
+  "36437",
+  "17767",
+  "83367",
+  "7646",
+];
 
 /** Generic entries from data/common_meds.json (brand rows look like "Advil (ibuprofen)"). */
 const ALL_MEDS: Med[] = (commonMeds as Med[]).filter((m) => !/\(/.test(m.name));
 const MED_OPTIONS: { withPosts: Med[]; others: Med[] } = {
-  withPosts: SEEDED_RXCUI.map((rx) => ALL_MEDS.find((m) => m.rxcui === rx)).filter((m): m is Med => !!m),
-  others: ALL_MEDS.filter((m) => !SEEDED_RXCUI.includes(m.rxcui)).sort((a, b) => a.name.localeCompare(b.name)),
+  withPosts: SEEDED_RXCUI.map((rx) =>
+    ALL_MEDS.find((m) => m.rxcui === rx),
+  ).filter((m): m is Med => !!m),
+  others: ALL_MEDS.filter((m) => !SEEDED_RXCUI.includes(m.rxcui)).sort((a, b) =>
+    a.name.localeCompare(b.name),
+  ),
 };
-const findMed = (rxcui: string) => ALL_MEDS.find((m) => m.rxcui === rxcui) ?? null;
+const findMed = (rxcui: string) =>
+  ALL_MEDS.find((m) => m.rxcui === rxcui) ?? null;
 
 /** "Ibuprofen (Advil, Motrin)" for <option> text, where styling isn't possible. */
 function optionLabel(m: Med) {
@@ -35,18 +64,61 @@ function optionLabel(m: Med) {
 }
 
 /** Generic capitalized, brand aliases muted. */
-function MedName({ med, brands = true }: { med: Pick<Med, "name" | "rxcui" | "ingredientName">; brands?: boolean }) {
+function MedName({
+  med,
+  brands = true,
+}: {
+  med: Pick<Med, "name" | "rxcui" | "ingredientName">;
+  brands?: boolean;
+}) {
   const s = shortName(med);
   return (
     <>
       <span>{s.generic}</span>
-      {brands && s.brands.length > 0 && <span className="text-md-on-surface-variant font-normal"> · {s.brands.join(", ")}</span>}
+      {brands && s.brands.length > 0 && (
+        <span className="text-md-on-surface-variant font-normal">
+          {" "}
+          · {s.brands.join(", ")}
+        </span>
+      )}
     </>
   );
 }
 
-const ADJECTIVES = ["quiet", "gentle", "brave", "sunny", "mellow", "calm", "steady", "patient", "humble", "hopeful", "tender", "bright", "cozy", "wandering", "kind"];
-const ANIMALS = ["otter", "heron", "sparrow", "badger", "fox", "walrus", "crane", "moose", "lynx", "finch", "owl", "tortoise", "beaver", "elk", "seal"];
+const ADJECTIVES = [
+  "quiet",
+  "gentle",
+  "brave",
+  "sunny",
+  "mellow",
+  "calm",
+  "steady",
+  "patient",
+  "humble",
+  "hopeful",
+  "tender",
+  "bright",
+  "cozy",
+  "wandering",
+  "kind",
+];
+const ANIMALS = [
+  "otter",
+  "heron",
+  "sparrow",
+  "badger",
+  "fox",
+  "walrus",
+  "crane",
+  "moose",
+  "lynx",
+  "finch",
+  "owl",
+  "tortoise",
+  "beaver",
+  "elk",
+  "seal",
+];
 
 function pick<T>(arr: T[]): T {
   const buf = new Uint32Array(1);
@@ -102,7 +174,7 @@ const TAG_LABEL: Record<SideEffectTag, string> = {
 
 export function MedicationTalk({ className = "" }: { className?: string }) {
   const handle = useAnonHandle();
-  const [selectedMed, setSelectedMed] = useState<Med | null>(null);
+  const [selectedMed, setSelectedMed] = useState<Med | null>(findMed("6809"));
   const [term, setTerm] = useState<string | null>(null);
   const [terms, setTerms] = useState<TopTerm[]>([]);
   const [official, setOfficial] = useState<string | null>(null);
@@ -110,45 +182,75 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const ids = useId();
+  const requestVersion = useRef(0);
 
   const load = useCallback(async () => {
+    const version = ++requestVersion.current;
     setLoading(true);
+    setTerms([]);
+    setPosts([]);
+    setOfficial(null);
     setLoadError("");
-    const rx = selectedMed?.rxcui;
+    const rx =
+      selectedMed?.rxcui && !selectedMed.rxcui.startsWith("manual:")
+        ? selectedMed.rxcui
+        : undefined;
     const tp = new URLSearchParams();
     if (rx) {
       tp.set("rxcui", rx);
       tp.set("name", selectedMed?.ingredientName ?? selectedMed?.name ?? "");
     }
+    if (!rx && selectedMed)
+      tp.set("name", selectedMed.ingredientName || selectedMed.name);
     const pp = new URLSearchParams();
+    if (!rx && selectedMed)
+      pp.set("name", selectedMed.ingredientName || selectedMed.name);
     if (rx) pp.set("rxcui", rx);
     if (term) pp.set("term", term);
     pp.set("limit", "30");
     try {
-      const [tRes, pRes] = await Promise.all([fetch(`/api/community/terms?${tp}`), fetch(`/api/community/posts?${pp}`)]);
+      const [tRes, pRes] = await Promise.all([
+        fetch(`/api/community/terms?${tp}`),
+        fetch(`/api/community/posts?${pp}`),
+      ]);
       if (!tRes.ok || !pRes.ok) throw new Error("load");
-      const t = (await tRes.json()) as { terms: TopTerm[]; official: string | null };
+      const t = (await tRes.json()) as {
+        terms: TopTerm[];
+        official: string | null;
+      };
       const p = (await pRes.json()) as { posts: CommunityPost[] };
+      if (version !== requestVersion.current) return;
       setTerms(t.terms);
       setOfficial(t.official);
       setPosts(p.posts);
     } catch {
-      setLoadError("We couldn't load posts right now. Please try again in a moment.");
+      if (version !== requestVersion.current) return;
+      setLoadError(
+        "We couldn't load posts right now. Please try again in a moment.",
+      );
     } finally {
-      setLoading(false);
+      if (version === requestVersion.current) setLoading(false);
     }
   }, [selectedMed, term]);
 
   useEffect(() => {
     void load();
+    return () => {
+      requestVersion.current++;
+    };
   }, [load]);
 
   const selectedGeneric = selectedMed ? shortName(selectedMed).generic : null;
 
   const listenText = () => {
-    const scope = selectedGeneric ? `for ${selectedGeneric}` : "for all medicines";
+    const scope = selectedGeneric
+      ? `for ${selectedGeneric}`
+      : "for all medicines";
     const termLine = terms.length
-      ? `Top terms ${scope}: ${terms.slice(0, 8).map((t) => `${t.term}, ${t.count}`).join("; ")}.`
+      ? `Top terms ${scope}: ${terms
+          .slice(0, 8)
+          .map((t) => `${t.term}, ${t.count}`)
+          .join("; ")}.`
       : `No posts yet ${scope}.`;
     const postLines = posts
       .slice(0, 3)
@@ -156,7 +258,11 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
         (p, i) =>
           `Post ${i + 1}, about ${shortName({ name: p.drug_name, rxcui: p.rxcui ?? "", ingredientName: p.drug_name }).generic}, ${relativeTime(p.created_at)}: ${p.body}`,
       );
-    return [termLine, ...postLines, "These are other people's experiences, not medical advice."].join(" ");
+    return [
+      termLine,
+      ...postLines,
+      "These are other people's experiences, not medical advice.",
+    ].join(" ");
   };
 
   return (
@@ -167,33 +273,21 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
         subtitle="What people say about their own side effects. Experiences, not advice."
         actions={
           <>
-            <Select
-              label="Show posts about"
-              hideLabel
-              value={selectedMed?.rxcui ?? ""}
-              onChange={(e) => {
-                setSelectedMed(findMed(e.target.value));
+            <MedicinePicker
+              label="Selected medicine"
+              value={selectedMed}
+              onChange={(m) => {
+                setSelectedMed(m);
                 setTerm(null);
               }}
-              className="max-w-[14rem]"
-            >
-              <option value="">All medicines</option>
-              <optgroup label="With posts">
-                {MED_OPTIONS.withPosts.map((m) => (
-                  <option key={m.rxcui} value={m.rxcui}>
-                    {optionLabel(m)}
-                  </option>
-                ))}
-              </optgroup>
-              <optgroup label="Other common medicines">
-                {MED_OPTIONS.others.map((m) => (
-                  <option key={m.rxcui} value={m.rxcui}>
-                    {optionLabel(m)}
-                  </option>
-                ))}
-              </optgroup>
-            </Select>
-            <ListenButton getText={listenText} text="" size="sm" variant="outlined" label="Listen" />
+            />
+            <ListenButton
+              getText={listenText}
+              text=""
+              size="sm"
+              variant="outlined"
+              label="Listen"
+            />
           </>
         }
       />
@@ -203,21 +297,38 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
         <div className="lg:col-span-2 space-y-5 min-w-0">
           <section aria-labelledby={`${ids}-terms-h`} className="space-y-2">
             <h3 id={`${ids}-terms-h`} className="eyebrow">
-              Top terms{selectedGeneric ? ` · ${selectedGeneric}` : ""}
+              Top terms for {selectedGeneric || "your selected medicine"}
             </h3>
             {terms.length === 0 ? (
-              <p className="text-meta text-md-on-surface-variant">{loading ? "Loading…" : "No posts yet, so no terms to show."}</p>
+              <p className="text-meta text-md-on-surface-variant">
+                {loading
+                  ? "Loading…"
+                  : "No community terms for this medicine yet. Choose another medicine or share your experience."}
+              </p>
             ) : (
-              <ul className="flex flex-wrap gap-2 list-none p-0 m-0" aria-label="Most mentioned terms. Choose one to filter posts.">
+              <ul
+                className="flex flex-wrap gap-2 list-none p-0 m-0"
+                aria-label="Most mentioned terms. Choose one to filter posts."
+              >
                 {terms.map((t) => (
                   <li key={t.term}>
                     <Chip
                       selected={term === t.term}
-                      onClick={() => setTerm((cur) => (cur === t.term ? null : t.term))}
+                      onClick={() =>
+                        setTerm((cur) => (cur === t.term ? null : t.term))
+                      }
                       aria-label={`${t.term}, mentioned in ${t.count} ${t.count === 1 ? "post" : "posts"}${term === t.term ? ", selected" : ""}`}
                     >
                       {t.term}
-                      <span className={term === t.term ? "text-md-on-primary/70" : "text-md-on-surface-variant"}>· {t.count}</span>
+                      <span
+                        className={
+                          term === t.term
+                            ? "text-md-on-primary/70"
+                            : "text-md-on-surface-variant"
+                        }
+                      >
+                        · {t.count}
+                      </span>
                     </Chip>
                   </li>
                 ))}
@@ -226,14 +337,21 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
             {term && (
               <p className="text-meta text-md-on-surface-variant">
                 Showing posts that mention &ldquo;{term}&rdquo;.{" "}
-                <button type="button" onClick={() => setTerm(null)} className="text-md-tertiary underline underline-offset-4 rounded">
+                <button
+                  type="button"
+                  onClick={() => setTerm(null)}
+                  className="text-md-tertiary underline underline-offset-4 rounded"
+                >
                   Show all
                 </button>
               </p>
             )}
           </section>
 
-          <section aria-labelledby={`${ids}-official-h`} className="bg-md-surface-container-low rounded-xl p-4 space-y-2">
+          <section
+            aria-labelledby={`${ids}-official-h`}
+            className="bg-md-surface-container-low rounded-xl p-4 space-y-2"
+          >
             <div className="flex items-center justify-between gap-2">
               <h3 id={`${ids}-official-h`} className="eyebrow">
                 From the label
@@ -252,10 +370,14 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
               <PlainText as="p" text={official} className="text-body" />
             ) : (
               <p className="text-meta text-md-on-surface-variant">
-                {selectedMed ? "No label text on file for this medicine yet." : "Pick a medicine to see what its official label lists as common side effects."}
+                {selectedMed
+                  ? "No label text on file for this medicine yet."
+                  : "Pick a medicine to see what its official label lists as common side effects."}
               </p>
             )}
-            <p className="text-meta text-md-on-surface-variant">Source: openFDA drug label, adverse reactions section.</p>
+            <p className="text-meta text-md-on-surface-variant">
+              Source: openFDA drug label, adverse reactions section.
+            </p>
           </section>
         </div>
 
@@ -265,13 +387,23 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
 
           <p className="text-meta text-md-on-surface-variant">
             If a side effect worries you, call your pharmacist or clinic.{" "}
-            <a href={MEDWATCH} target="_blank" rel="noreferrer" className="text-md-tertiary underline underline-offset-4">
+            <a
+              href={MEDWATCH}
+              target="_blank"
+              rel="noreferrer"
+              className="text-md-tertiary underline underline-offset-4"
+            >
               Report a side effect to FDA MedWatch
             </a>
             .
           </p>
 
-          <section aria-labelledby={`${ids}-posts-h`} aria-live="polite" aria-busy={loading} className="space-y-2">
+          <section
+            aria-labelledby={`${ids}-posts-h`}
+            aria-live="polite"
+            aria-busy={loading}
+            className="space-y-2"
+          >
             <h3 id={`${ids}-posts-h`} className="eyebrow">
               What people say
             </h3>
@@ -281,7 +413,9 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
               </p>
             )}
             {!loading && !loadError && posts.length === 0 && (
-              <p className="text-meta text-md-on-surface-variant">No posts here yet. Be the first to share how it went for you.</p>
+              <p className="text-meta text-md-on-surface-variant">
+                No posts here yet. Be the first to share how it went for you.
+              </p>
             )}
             {posts.length > 0 && (
               <ul className="space-y-3 list-none p-0 m-0 max-h-[60vh] overflow-y-auto pr-1">
@@ -289,18 +423,34 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
                   <Card as="li" key={p.post_id} dense className="space-y-2">
                     <div className="flex flex-wrap items-center gap-2 text-meta text-md-on-surface-variant">
                       <Chip asSpan className="h-7 px-2.5">
-                        {shortName({ name: p.drug_name, rxcui: p.rxcui ?? "", ingredientName: p.drug_name }).generic}
+                        {
+                          shortName({
+                            name: p.drug_name,
+                            rxcui: p.rxcui ?? "",
+                            ingredientName: p.drug_name,
+                          }).generic
+                        }
                       </Chip>
-                      <span className="font-medium text-md-on-background">{p.anon_handle}</span>
+                      <span className="font-medium text-md-on-background">
+                        {p.anon_handle}
+                      </span>
                       <span aria-hidden="true">·</span>
-                      <time dateTime={p.created_at}>{relativeTime(p.created_at)}</time>
+                      <time dateTime={p.created_at}>
+                        {relativeTime(p.created_at)}
+                      </time>
                     </div>
                     <PlainText as="p" text={p.body} className="text-body" />
                     {p.side_effect_tags.length > 0 && (
-                      <ul className="flex flex-wrap gap-2 list-none p-0 m-0" aria-label="Tags">
+                      <ul
+                        className="flex flex-wrap gap-2 list-none p-0 m-0"
+                        aria-label="Tags"
+                      >
                         {p.side_effect_tags.map((t) => (
                           <li key={t}>
-                            <Chip asSpan className="h-7 px-2.5 bg-md-surface-container-low">
+                            <Chip
+                              asSpan
+                              className="h-7 px-2.5 bg-md-surface-container-low"
+                            >
                               {TAG_LABEL[t] ?? t}
                             </Chip>
                           </li>
@@ -318,7 +468,15 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
   );
 }
 
-function PostForm({ handle, selectedMed, onPosted }: { handle: string; selectedMed: Med | null; onPosted: () => void }) {
+function PostForm({
+  handle,
+  selectedMed,
+  onPosted,
+}: {
+  handle: string;
+  selectedMed: Med | null;
+  onPosted: () => void;
+}) {
   const [med, setMed] = useState<Med | null>(selectedMed);
   const [body, setBody] = useState("");
   const [tags, setTags] = useState<SideEffectTag[]>([]);
@@ -347,7 +505,13 @@ function PostForm({ handle, selectedMed, onPosted }: { handle: string; selectedM
       const res = await fetch("/api/community/posts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rxcui: med.rxcui, drugName: med.ingredientName || med.name, body: text, tags, anonHandle: handle }),
+        body: JSON.stringify({
+          rxcui: med.rxcui.startsWith("manual:") ? undefined : med.rxcui,
+          drugName: med.ingredientName || med.name,
+          body: text,
+          tags,
+          anonHandle: handle,
+        }),
       });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
@@ -374,23 +538,11 @@ function PostForm({ handle, selectedMed, onPosted }: { handle: string; selectedM
         <h3 id={`${ids}-h`} className="eyebrow">
           Share how it went for you
         </h3>
-        <Select label="Medicine" hideLabel required value={med?.rxcui ?? ""} onChange={(e) => setMed(findMed(e.target.value))} className="max-w-[14rem]">
-          <option value="">Choose a medicine</option>
-          <optgroup label="With posts">
-            {MED_OPTIONS.withPosts.map((m) => (
-              <option key={m.rxcui} value={m.rxcui}>
-                {optionLabel(m)}
-              </option>
-            ))}
-          </optgroup>
-          <optgroup label="Other common medicines">
-            {MED_OPTIONS.others.map((m) => (
-              <option key={m.rxcui} value={m.rxcui}>
-                {optionLabel(m)}
-              </option>
-            ))}
-          </optgroup>
-        </Select>
+        <MedicinePicker
+          label="Medicine for your post"
+          value={med}
+          onChange={setMed}
+        />
       </div>
 
       <TextArea
@@ -414,14 +566,20 @@ function PostForm({ handle, selectedMed, onPosted }: { handle: string; selectedM
               <label
                 key={t}
                 className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-meta font-medium cursor-pointer border transition-all duration-200 ease-md active:scale-95 focus-within:ring-2 focus-within:ring-md-primary focus-within:ring-offset-2 ${
-                  on ? "bg-md-primary text-md-on-primary border-md-primary" : "bg-md-surface-container text-md-on-background border-md-outline hover:bg-md-secondary-container"
+                  on
+                    ? "bg-md-primary text-md-on-primary border-md-primary"
+                    : "bg-md-surface-container text-md-on-background border-md-outline hover:bg-md-secondary-container"
                 }`}
               >
                 <input
                   type="checkbox"
                   className="sr-only"
                   checked={on}
-                  onChange={() => setTags((cur) => (on ? cur.filter((x) => x !== t) : [...cur, t]))}
+                  onChange={() =>
+                    setTags((cur) =>
+                      on ? cur.filter((x) => x !== t) : [...cur, t],
+                    )
+                  }
                 />
                 <span aria-hidden="true">{on ? "✓" : "+"}</span>
                 {TAG_LABEL[t]}
@@ -433,7 +591,8 @@ function PostForm({ handle, selectedMed, onPosted }: { handle: string; selectedM
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-meta text-md-on-surface-variant">
-          Posting as <span className="font-medium text-md-on-background">{handle}</span>
+          Posting as{" "}
+          <span className="font-medium text-md-on-background">{handle}</span>
           {med && (
             <>
               {" "}
