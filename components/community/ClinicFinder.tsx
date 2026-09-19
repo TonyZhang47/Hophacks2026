@@ -26,7 +26,7 @@ type Filters = { medicaid: boolean; medicare: boolean; slidingFee: boolean; rura
 const T = {
   en: {
     title: "Clinics",
-    subtitle: "Community health centers and rural health clinics near a ZIP. We only use the ZIP, never your exact spot.",
+    subtitle: "Community health centers and rural health clinics near a ZIP code or your current location.",
     help: "Enter a ZIP code or use your location, then choose filters and press Find clinics.",
     zip: "ZIP code",
     locating: "Finding you…",
@@ -68,7 +68,7 @@ const T = {
   },
   es: {
     title: "Clínicas",
-    subtitle: "Centros de salud comunitarios y clínicas rurales cerca de un código postal. Solo usamos el ZIP, nunca su ubicación exacta.",
+    subtitle: "Centros de salud comunitarios y clínicas rurales cerca de un código postal o de su ubicación actual.",
     help: "Escriba un código postal o use su ubicación, elija filtros y pulse Buscar clínicas.",
     zip: "Código postal",
     locating: "Buscándole…",

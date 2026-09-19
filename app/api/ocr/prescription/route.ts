@@ -3,13 +3,14 @@ import { isXaiConfigured } from "@/lib/env";
 import { error, json } from "@/lib/http";
 import { readImageText } from "@/lib/vision";
 import { parseDirectionsHeuristic } from "@/lib/dose/parse";
+import { matchLabelToCatalog } from "@/lib/dose/matchLabel";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
  * POST /api/ocr/prescription  { image: "data:image/jpeg;base64,…" }
- *   200 { text, drugName?, strengthMg?, provider: "grok" }
+ *   200 { text, drugName?, strengthMg?, match, candidates, provider: "grok" }
  *   400 malformed body / unsupported type / image over 6 MB decoded
  *   422 { error: "unreadable" }          Grok could not read the label
  *   502 { error: "vision-failed" }       upstream error
@@ -96,6 +97,14 @@ export async function POST(req: Request) {
     }
   }
   const strengthMg = parseDirectionsHeuristic(text.replace(/\n/g, ", ")).strengthMg;
+  const { match, candidates } = await matchLabelToCatalog(text, drugName);
 
-  return json({ text, drugName, strengthMg, provider: "grok" as const });
+  return json({
+    text,
+    drugName,
+    strengthMg,
+    match,
+    candidates,
+    provider: "grok" as const,
+  });
 }

@@ -1,9 +1,9 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Clock, Info, ShieldAlert } from "lucide-react";
 import { useLang } from "@/components/LanguageContext";
-import { ScanBottle } from "@/components/dose/ScanBottle";
+import { ScanBottle, type ScanHint } from "@/components/dose/ScanBottle";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { ListenButton } from "@/components/ui/ListenButton";
@@ -22,7 +22,7 @@ export interface DoseExplainerProps {
   onResult?: (r: { input: DoseInput; result: DoseResult }) => void;
 }
 
-type Phase = "idle" | "parsing" | "confirm" | "checking" | "done";
+type Phase = "idle" | "match" | "parsing" | "confirm" | "checking" | "done";
 
 const OTHER = "__other__";
 const MAX_DIRECTIONS = 500;
@@ -85,6 +85,20 @@ const T = {
     calendarNote: "Optional note",
     calendarSaved: "Added to your calendar.",
     calendarFailed: "Could not save to the calendar on this device.",
+    matchHeading: "Is this the medicine?",
+    matchYes: "Yes, that’s it",
+    matchNo: "No, pick another",
+    matchNone: "None of these",
+    matchSearch: "Search for another medicine",
+    matchSearchHint: "Type a name from the public list.",
+    matchEmpty:
+      "We could not match this photo to a medicine in public FDA/RxNorm data. Search for the name on your bottle, or continue without a catalog match.",
+    matchPick: "Pick another from this list",
+    matchAi:
+      "We used AI to match this photo to a medicine name in public FDA/RxNorm data. It can be wrong. Only continue if it matches your bottle. This is not medical advice.",
+    searching: "Searching…",
+    noSearchHits: "Nothing found with that name.",
+    proposed: "Proposed match",
   },
   es: {
     heading: "Cuánto y cuándo",
@@ -143,6 +157,20 @@ const T = {
     calendarNote: "Nota opcional",
     calendarSaved: "Agregado a su calendario.",
     calendarFailed: "No se pudo guardar en el calendario de este dispositivo.",
+    matchHeading: "¿Es este el medicamento?",
+    matchYes: "Sí, es ese",
+    matchNo: "No, elegir otro",
+    matchNone: "Ninguno de estos",
+    matchSearch: "Buscar otro medicamento",
+    matchSearchHint: "Escriba un nombre de la lista pública.",
+    matchEmpty:
+      "No pudimos emparejar esta foto con un medicamento de los datos públicos de FDA/RxNorm. Busque el nombre de su frasco, o continúe sin coincidencia del catálogo.",
+    matchPick: "Elija otro de esta lista",
+    matchAi:
+      "Usamos inteligencia artificial para emparejar esta foto con un nombre de medicamento en datos públicos de FDA/RxNorm. Puede equivocarse. Continúe solo si coincide con su frasco. Esto no es consejo médico.",
+    searching: "Buscando…",
+    noSearchHits: "No encontramos nada con ese nombre.",
+    proposed: "Coincidencia propuesta",
   },
 } as const;
 
@@ -208,6 +236,7 @@ function speechFor(
   result: DoseResult | null,
   input: DoseInput | null,
   t: (typeof T)["en"] | (typeof T)["es"],
+  matchName?: string,
 ): string {
   if (result) {
     if (result.status === "consistent") {
@@ -227,6 +256,9 @@ function speechFor(
       `${t.howOften}: ${howOftenDisplay(input, t)}.`,
       `${t.youWrote}: ${input.userText}`,
     ].join(" ");
+  }
+  if (matchName) {
+    return [t.matchHeading, matchName, t.matchAi].join(" ");
   }
   return `${t.heading}. ${t.intro}`;
 }
@@ -249,9 +281,15 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
   const [calUntil, setCalUntil] = useState(() => localDayString(new Date()));
   const [calNote, setCalNote] = useState("");
   const [calMsg, setCalMsg] = useState("");
+  const [scanMatch, setScanMatch] = useState<Med | null>(null);
+  const [scanCandidates, setScanCandidates] = useState<Med[]>([]);
+  const [scanDrugName, setScanDrugName] = useState("");
+  const [pickingOther, setPickingOther] = useState(false);
+  const [matchFlow, setMatchFlow] = useState(false);
 
   const selectedMed = useMemo(() => meds.find((m) => m.rxcui === medChoice) ?? null, [meds, medChoice]);
   const hasPicker = meds.length > 0;
+  const proposedName = scanMatch ? displayName(scanMatch) : "";
 
   function medHintFor(choice: string, other: string): Med | undefined {
     const m = meds.find((x) => x.rxcui === choice);
@@ -259,7 +297,11 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
     return other.trim() ? { name: other.trim(), rxcui: "" } : undefined;
   }
 
-  async function readBack(directions = text, med: Med | undefined = medHintFor(medChoice, otherName)) {
+  async function readBack(
+    directions = text,
+    med: Med | undefined = medHintFor(medChoice, otherName),
+    opts: { failPhase?: Phase; lockRxcui?: boolean } = {},
+  ) {
     const trimmed = directions.trim();
     if (!trimmed) return;
     setErrorMsg("");
@@ -269,7 +311,11 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
       const res = await fetch("/api/dose/parse", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: trimmed.slice(0, MAX_DIRECTIONS), med }),
+        body: JSON.stringify({
+          text: trimmed.slice(0, MAX_DIRECTIONS),
+          med,
+          lockRxcui: opts.lockRxcui === true,
+        }),
       });
       if (!res.ok) throw new Error(`parse ${res.status}`);
       const data = (await res.json()) as { input: DoseInput };
@@ -283,32 +329,56 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
       setPhase("confirm");
     } catch {
       setErrorMsg(t.networkError);
-      setPhase("idle");
+      setPhase(opts.failPhase ?? "idle");
     }
   }
 
-  /** ScanBottle → fill the field, pick the medicine, and read it back right away. */
-  function handleScan(scanned: string, hint?: { drugName?: string }) {
+  /** ScanBottle → confirm catalog match before any dose parse. */
+  function handleScan(scanned: string, hint?: ScanHint) {
     const joined = scanned
       .split(/\r?\n/)
       .map((l) => l.trim())
       .filter(Boolean)
       .join(", ")
       .slice(0, MAX_DIRECTIONS);
-    setText(joined);
-    let med: Med | undefined;
     const drug = hint?.drugName?.trim() ?? "";
-    const match = drug ? matchMed(meds, drug) : null;
-    if (match) {
-      setMedChoice(match.rxcui);
-      med = match;
-    } else {
+    setText(joined);
+    setScanMatch(hint?.match ?? null);
+    setScanCandidates(hint?.candidates ?? []);
+    setScanDrugName(drug);
+    setPickingOther(!hint?.match);
+    setMatchFlow(true);
+    setErrorMsg("");
+    setPhase("match");
+  }
+
+  function leaveMatch() {
+    setMatchFlow(false);
+    setScanMatch(null);
+    setScanCandidates([]);
+    setScanDrugName("");
+    setPickingOther(false);
+    setPhase("idle");
+  }
+
+  function applyConfirmedMed(med: Med | null) {
+    const lock = { failPhase: "match" as const, lockRxcui: true };
+    if (med?.rxcui) {
+      const listed = meds.find((m) => m.rxcui === med.rxcui) ?? matchMed(meds, med.name);
+      if (listed) {
+        setMedChoice(listed.rxcui);
+        void readBack(text, listed, lock);
+        return;
+      }
       setMedChoice(OTHER);
-      const name = capitalize(drug);
-      setOtherName(name);
-      med = name ? { name, rxcui: "" } : undefined;
+      setOtherName(displayName(med));
+      void readBack(text, med, lock);
+      return;
     }
-    void readBack(joined, med);
+    setMedChoice(OTHER);
+    const name = capitalize((med?.name || scanDrugName || otherName).trim());
+    setOtherName(name);
+    void readBack(text, name ? { name, rxcui: "" } : undefined, lock);
   }
 
   async function checkIt() {
@@ -356,10 +426,22 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
     setErrorMsg("");
     setCalMsg("");
     setAddToCalendar(false);
+    setScanMatch(null);
+    setScanCandidates([]);
+    setScanDrugName("");
+    setPickingOther(false);
+    setMatchFlow(false);
   }
 
   const busy = phase === "parsing" || phase === "checking";
-  const speech = speechFor(phase === "done" ? result : null, phase === "confirm" || phase === "checking" ? input : null, t);
+  const matchSpeechName =
+    phase === "match" || (phase === "parsing" && matchFlow) ? proposedName || scanDrugName : undefined;
+  const speech = speechFor(
+    phase === "done" ? result : null,
+    phase === "confirm" || phase === "checking" ? input : null,
+    t,
+    matchSpeechName,
+  );
 
   // Confirmation: show the common name ("Metformin (also sold as Glucophage)").
   const confirmMedName = input
@@ -376,12 +458,27 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
         icon={Clock}
         title={t.heading}
         subtitle={t.intro}
-        actions={<ListenButton size="sm" variant="outlined" label={t.listen} text={speech} getText={() => speechFor(phase === "done" ? result : null, phase === "confirm" || phase === "checking" ? input : null, t)} />}
+        actions={
+          <ListenButton
+            size="sm"
+            variant="outlined"
+            label={t.listen}
+            text={speech}
+            getText={() =>
+              speechFor(
+                phase === "done" ? result : null,
+                phase === "confirm" || phase === "checking" ? input : null,
+                t,
+                matchSpeechName,
+              )
+            }
+          />
+        }
       />
 
       <div className="space-y-4">
         {/* Entry: scan on the left, type on the right */}
-        {(phase === "idle" || phase === "parsing") && (
+        {(phase === "idle" || (phase === "parsing" && !matchFlow)) && (
           <div className="grid sm:grid-cols-2 gap-4">
             <ScanBottle onText={handleScan} disabled={busy} />
             <form
@@ -426,6 +523,74 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
               </Button>
             </form>
           </div>
+        )}
+
+        {(phase === "match" || (phase === "parsing" && matchFlow)) && (
+          <section aria-labelledby={`${id}-match`} className="bg-md-surface-container-low rounded-xl p-4 space-y-3">
+            <h3 id={`${id}-match`} className="eyebrow">
+              {t.matchHeading}
+            </h3>
+            {scanMatch ? (
+              <KeyValue k={t.proposed} v={proposedName} />
+            ) : (
+              <p className="text-body">{t.matchEmpty}</p>
+            )}
+            {phase === "parsing" ? (
+              <p className="text-body text-md-on-surface-variant">{t.reading}</p>
+            ) : (
+              <>
+                {scanMatch && !pickingOther && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button size="md" onClick={() => applyConfirmedMed(scanMatch)}>
+                      {t.matchYes}
+                    </Button>
+                    <Button variant="outlined" size="md" onClick={() => setPickingOther(true)}>
+                      {t.matchNo}
+                    </Button>
+                    <Button variant="text" size="md" onClick={leaveMatch}>
+                      {t.edit}
+                    </Button>
+                  </div>
+                )}
+                {pickingOther && (
+                  <div className="space-y-3">
+                    {scanCandidates.length > 0 && (
+                      <ul className="flex flex-wrap gap-2" aria-label={t.matchPick}>
+                        {scanCandidates.map((m) => {
+                          const label = displayName(m);
+                          const selected = scanMatch?.rxcui === m.rxcui;
+                          return (
+                            <li key={m.rxcui}>
+                              <Button
+                                variant={selected ? "filled" : "outlined"}
+                                size="sm"
+                                onClick={() => applyConfirmedMed(m)}
+                              >
+                                {label}
+                              </Button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                    <CatalogSearch lang={lang} onPick={applyConfirmedMed} />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button variant="outlined" size="md" onClick={() => applyConfirmedMed(null)}>
+                        {t.matchNone}
+                      </Button>
+                      <Button variant="text" size="md" onClick={leaveMatch}>
+                        {t.edit}
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+            <p className="text-meta text-md-on-surface-variant flex items-start gap-2">
+              <Info className="h-4 w-4 mt-0.5 shrink-0" aria-hidden="true" />
+              <span>{t.matchAi}</span>
+            </p>
+          </section>
         )}
 
         {/* Confirmation well */}
@@ -656,5 +821,69 @@ function Evidence({ quotes, title, open }: { quotes: DoseResult["labelQuotes"]; 
         ))}
       </ul>
     </details>
+  );
+}
+
+function CatalogSearch({ lang, onPick }: { lang: "en" | "es"; onPick: (m: Med) => void }) {
+  const t = T[lang];
+  const [q, setQ] = useState("");
+  const [hits, setHits] = useState<Med[]>([]);
+  const [loading, setLoading] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    const query = q.trim();
+    abortRef.current?.abort();
+    if (query.length < 2) {
+      setHits([]);
+      setLoading(false);
+      return;
+    }
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const res = await fetch(`/api/meds/search?q=${encodeURIComponent(query)}`, { signal: ctrl.signal });
+        if (!res.ok) throw new Error(String(res.status));
+        const data = (await res.json()) as { results: Med[] };
+        setHits(data.results ?? []);
+      } catch (err) {
+        if ((err as Error).name !== "AbortError") setHits([]);
+      } finally {
+        if (!ctrl.signal.aborted) setLoading(false);
+      }
+    }, 250);
+    return () => {
+      clearTimeout(timer);
+      ctrl.abort();
+    };
+  }, [q]);
+
+  return (
+    <div className="space-y-2">
+      <TextField
+        label={t.matchSearch}
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        autoComplete="off"
+        hint={t.matchSearchHint}
+      />
+      {loading && <p className="text-meta text-md-on-surface-variant">{t.searching}</p>}
+      {!loading && q.trim().length >= 2 && hits.length === 0 && (
+        <p className="text-meta text-md-on-surface-variant">{t.noSearchHits}</p>
+      )}
+      {hits.length > 0 && (
+        <ul className="flex flex-wrap gap-2" aria-label={t.matchSearch}>
+          {hits.map((m) => (
+            <li key={m.rxcui}>
+              <Button variant="outlined" size="sm" onClick={() => onPick(m)}>
+                {displayName(m)}
+              </Button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }

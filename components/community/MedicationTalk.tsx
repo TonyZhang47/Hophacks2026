@@ -13,7 +13,6 @@ import { MedicinePicker } from "@/components/community/MedicinePicker";
 import { useTranslated } from "@/components/community/useTranslated";
 import { useLang, type Lang } from "@/components/LanguageContext";
 import { Send } from "lucide-react";
-import commonMeds from "@/data/common_meds.json";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
@@ -34,36 +33,6 @@ const HANDLE_KEY = "rxplain.community.handle";
 const MEDWATCH =
   "https://www.fda.gov/safety/medwatch-fda-safety-information-and-adverse-event-reporting-program";
 const POST_MAX = 500;
-
-/** Medicines with seeded posts; listed first in the filter. */
-const SEEDED_RXCUI = [
-  "6809",
-  "5640",
-  "11289",
-  "29046",
-  "36437",
-  "17767",
-  "83367",
-  "7646",
-];
-
-/** Generic entries from data/common_meds.json (brand rows look like "Advil (ibuprofen)"). */
-const ALL_MEDS: Med[] = (commonMeds as Med[]).filter((m) => !/\(/.test(m.name));
-const MED_OPTIONS: { withPosts: Med[]; others: Med[] } = {
-  withPosts: SEEDED_RXCUI.map((rx) =>
-    ALL_MEDS.find((m) => m.rxcui === rx),
-  ).filter((m): m is Med => !!m),
-  others: ALL_MEDS.filter((m) => !SEEDED_RXCUI.includes(m.rxcui)).sort((a, b) =>
-    a.name.localeCompare(b.name),
-  ),
-};
-const findMed = (rxcui: string) =>
-  ALL_MEDS.find((m) => m.rxcui === rxcui) ?? null;
-
-/** Generic name only for <option> text (brand search still works through the picker). */
-function optionLabel(m: Med) {
-  return shortName(m).generic;
-}
 
 /** Generic name, capitalized. Brand aliases are never shown on this page. */
 function MedName({
@@ -316,7 +285,7 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
   const { lang } = useLang();
   const t = T[lang];
   const handle = useAnonHandle();
-  const [selectedMed, setSelectedMed] = useState<Med | null>(findMed("6809"));
+  const [selectedMed, setSelectedMed] = useState<Med | null>(null);
   const [term, setTerm] = useState<string | null>(null);
   const [terms, setTerms] = useState<TopTerm[]>([]);
   const [official, setOfficial] = useState<string | null>(null);
@@ -329,7 +298,7 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
   const [summarizing, setSummarizing] = useState(false);
   const [summaryError, setSummaryError] = useState("");
   const [posts, setPosts] = useState<CommunityPost[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
   /** Item ids ("label", "summary", "post:<id>") the reader flipped back to the English original. */
   const [showOriginal, setShowOriginal] = useState<Set<string>>(() => new Set());
@@ -338,7 +307,6 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
 
   const load = useCallback(async () => {
     const version = ++requestVersion.current;
-    setLoading(true);
     setTerms([]);
     setOfficial(null);
     setOfficialFull(null);
@@ -349,6 +317,11 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
     setSummaryError("");
     setPosts([]);
     setLoadError("");
+    if (!selectedMed) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
     const rx =
       selectedMed?.rxcui && !selectedMed.rxcui.startsWith("manual:")
         ? selectedMed.rxcui
@@ -681,9 +654,11 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
               {t.topTerms(selectedGeneric || t.allMeds)}
             </h3>
             {shownTerms.length === 0 ? (
-              <p className="text-meta text-md-on-surface-variant">
-                {loading ? t.loading : t.noTerms}
-              </p>
+              loading || selectedMed ? (
+                <p className="text-meta text-md-on-surface-variant">
+                  {loading ? t.loading : t.noTerms}
+                </p>
+              ) : null
             ) : (
               <ul
                 className="flex flex-wrap gap-2 list-none p-0 m-0"
@@ -731,7 +706,7 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
               {loadError}
             </p>
           )}
-          {!loading && !loadError && posts.length === 0 && (
+          {!loading && !loadError && posts.length === 0 && selectedMed && (
             <p className="text-meta text-md-on-surface-variant">
               {t.noPosts}
             </p>

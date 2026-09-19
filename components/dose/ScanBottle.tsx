@@ -7,10 +7,17 @@ import { downscale } from "@/lib/imageUpload";
 import { Camera, Image as ImageIcon, Loader2 } from "lucide-react";
 import { useLang } from "@/components/LanguageContext";
 import { Button } from "@/components/ui/Button";
+import type { Med } from "@/lib/types";
+
+export interface ScanHint {
+  drugName?: string;
+  match?: Med | null;
+  candidates?: Med[];
+}
 
 export interface ScanBottleProps {
-  /** Called with the transcribed label lines (newline-separated) and a drug-name hint when one was read. */
-  onText: (text: string, hint?: { drugName?: string }) => void;
+  /** Called with the transcribed label lines and a catalog match the parent must confirm. */
+  onText: (text: string, hint?: ScanHint) => void;
   disabled?: boolean;
 }
 
@@ -22,7 +29,7 @@ const T = {
     choose: "Choose a photo",
     help: "Point the camera at the directions on the label. Photos are sent to Grok to read the label. Cover your name and other personal details first.",
     reading: "Reading the label…",
-    done: "Label read. Check the directions below.",
+    done: "Label read. Confirm the medicine name below.",
     noProvider:
       "Bottle reading is unavailable right now. Type the directions instead.",
     unreadable:
@@ -35,7 +42,7 @@ const T = {
     choose: "Elegir una foto",
     help: "Apunte la cámara a las indicaciones de la etiqueta. La foto se envía a Grok para leer la etiqueta. Cubra primero su nombre y otros datos personales.",
     reading: "Leyendo la etiqueta…",
-    done: "Etiqueta leída. Revise las indicaciones abajo.",
+    done: "Etiqueta leída. Confirme el nombre del medicamento abajo.",
     noProvider:
       "La lectura de etiquetas no está disponible ahora. Escriba las indicaciones en su lugar.",
     unreadable:
@@ -48,7 +55,8 @@ const T = {
 
 /**
  * "Scan my bottle": camera (or file) → client-side downscale → POST /api/ocr/prescription →
- * `onText(lines, { drugName })`. Text only; the parent still shows the confirmation step.
+ * `onText(lines, { drugName, match, candidates })`. The parent confirms the catalog match
+ * before any dose parse.
  */
 export function ScanBottle({ onText, disabled }: ScanBottleProps) {
   const { lang } = useLang();
@@ -92,10 +100,19 @@ export function ScanBottle({ onText, disabled }: ScanBottleProps) {
         return;
       }
       if (!res.ok) throw new Error(`ocr ${res.status}`);
-      const data = (await res.json()) as { text: string; drugName?: string };
+      const data = (await res.json()) as {
+        text: string;
+        drugName?: string;
+        match?: Med | null;
+        candidates?: Med[];
+      };
       setState("done");
       setMessage(t.done);
-      onText(data.text, { drugName: data.drugName });
+      onText(data.text, {
+        drugName: data.drugName,
+        match: data.match ?? null,
+        candidates: data.candidates ?? [],
+      });
     } catch (err) {
       if ((err as Error).name === "AbortError") return;
       setState("error");

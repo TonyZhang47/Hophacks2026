@@ -7,11 +7,11 @@ import { PageHeader } from "@/components/ui/Panel";
 const T = {
   en: {
     title: "Clinics",
-    subtitle: "Community health centers and rural health clinics near a ZIP. We only use the ZIP, never your exact spot.",
+    subtitle: "Community health centers and rural health clinics near a ZIP code or your current location.",
   },
   es: {
     title: "Clínicas",
-    subtitle: "Centros de salud comunitarios y clínicas rurales cerca de un código postal. Solo usamos el ZIP, nunca su ubicación exacta.",
+    subtitle: "Centros de salud comunitarios y clínicas rurales cerca de un código postal o de su ubicación actual.",
   },
 } as const;
 

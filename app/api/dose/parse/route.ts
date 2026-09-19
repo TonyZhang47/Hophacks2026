@@ -15,6 +15,8 @@ const BodySchema = z.object({
       ingredientName: z.string().optional(),
     })
     .optional(),
+  /** When true, do not silently attach the first catalog hit — the user already confirmed or declined. */
+  lockRxcui: z.boolean().optional(),
 });
 
 /** Offline resolver for the six demo meds so the explainer works with no network. */
@@ -67,7 +69,7 @@ export async function POST(req: Request) {
   const hint = body.med && (body.med.name || body.med.rxcui) ? body.med : undefined;
   let input: DoseInput = await parseDirections(body.text, hint);
 
-  if (!input.rxcui) {
+  if (!input.rxcui && !body.lockRxcui) {
     const med = await resolveMed(input.drugName || hint?.name || "");
     if (med) {
       input = { ...input, rxcui: med.rxcui, drugName: input.drugName || med.name };
