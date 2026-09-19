@@ -1,5 +1,5 @@
-import { MedsWorkspace } from "@/components/meds/MedsWorkspace";
+import { HomeHero } from "@/components/layout/HomeHero";
 
 export default function HomePage() {
-  return <MedsWorkspace />;
+  return <HomeHero />;
 }

@@ -43,7 +43,7 @@ export function PanelHeader({
   return (
     <div className={`flex flex-wrap items-start justify-between gap-3 mb-5 ${className}`}>
       <div className="min-w-0">
-        <Tag className="font-serif text-2xl flex items-center gap-2 tracking-tight">
+        <Tag className="font-serif text-section font-normal flex items-center gap-2">
           {Icon && <Icon className="h-4 w-4 text-md-on-surface-variant" aria-hidden="true" />}
           {title}
         </Tag>
@@ -99,7 +99,7 @@ export function PageHeader({
   return (
     <div className="flex flex-wrap items-end justify-between gap-4 pt-6 pb-4">
       <div className="min-w-0">
-        <h1 className="font-serif text-4xl font-normal">{title}</h1>
+        <h1 className="font-serif text-page">{title}</h1>
         {subtitle && <p className="mt-1 text-body text-md-on-surface-variant max-w-2xl">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}

@@ -112,7 +112,7 @@ export function ScanBottle({ onText, disabled }: ScanBottleProps) {
 
   return (
     <div className="rounded-xl bg-md-surface-container-low p-4 flex flex-col gap-3 h-full">
-      <h3 className="font-serif text-2xl">{t.scan}</h3>
+      <h3 className="text-title">{t.scan}</h3>
       <div className="flex flex-wrap items-center gap-2">
         <Button
           type="button"

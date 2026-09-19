@@ -219,6 +219,12 @@ const T = {
     noLabelYet: "No label text on file for this medicine yet.",
     pickMed: "Pick a medicine to see what its official label lists as common side effects.",
     source: "Source: openFDA drug label, adverse reactions section.",
+    seeMore: "See more",
+    seeLess: "See less",
+    summarizeNow: "Summarize now",
+    summarizing: "Summarizing…",
+    summarizeError: "We couldn't summarize that right now. The label text is still below.",
+    aiDisclaimer: "This summary is written by AI and may not be accurate. It is not medical advice.",
     ifWorries: "If a side effect worries you, call your pharmacist or clinic.",
     report: "Report a side effect to FDA MedWatch",
     whatPeople: "What people say",
@@ -271,6 +277,12 @@ const T = {
     noLabelYet: "Aún no hay texto de etiqueta registrado para este medicamento.",
     pickMed: "Elija un medicamento para ver los efectos secundarios comunes de su etiqueta oficial.",
     source: "Fuente: etiqueta de medicamentos de openFDA, sección de reacciones adversas.",
+    seeMore: "Ver más",
+    seeLess: "Ver menos",
+    summarizeNow: "Resumir ahora",
+    summarizing: "Resumiendo…",
+    summarizeError: "No pudimos resumir eso ahora. El texto de la etiqueta sigue abajo.",
+    aiDisclaimer: "Este resumen lo escribe una IA y puede no ser exacto. No es consejo médico.",
     ifWorries: "Si un efecto secundario le preocupa, llame a su farmacéutico o clínica.",
     report: "Informar un efecto secundario a FDA MedWatch",
     whatPeople: "Lo que dice la gente",
@@ -311,6 +323,13 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
   const [selectedMed, setSelectedMed] = useState<Med | null>(findMed("6809"));
   const [term, setTerm] = useState<string | null>(null);
   const [terms, setTerms] = useState<TopTerm[]>([]);
+  const [official, setOfficial] = useState<string | null>(null);
+  const [officialFull, setOfficialFull] = useState<string | null>(null);
+  const [officialHasMore, setOfficialHasMore] = useState(false);
+  const [labelExpanded, setLabelExpanded] = useState(false);
+  const [summary, setSummary] = useState<string | null>(null);
+  const [summarizing, setSummarizing] = useState(false);
+  const [summaryError, setSummaryError] = useState("");
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -321,6 +340,13 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
     const version = ++requestVersion.current;
     setLoading(true);
     setTerms([]);
+    setOfficial(null);
+    setOfficialFull(null);
+    setOfficialHasMore(false);
+    setLabelExpanded(false);
+    setSummary(null);
+    setSummarizing(false);
+    setSummaryError("");
     setPosts([]);
     setLoadError("");
     const rx =
@@ -347,13 +373,45 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
         fetch(`/api/community/posts?${pp}`),
       ]);
       if (!tRes.ok || !pRes.ok) throw new Error("load");
-      const t = (await tRes.json()) as {
+      const termsJson = (await tRes.json()) as {
         terms: TopTerm[];
         official: string | null;
+        officialFull?: string | null;
+        officialHasMore?: boolean;
       };
       const p = (await pRes.json()) as { posts: CommunityPost[] };
       if (version !== requestVersion.current) return;
-      setTerms((t.terms ?? []).slice(0, 5));
+      setTerms((termsJson.terms ?? []).slice(0, 5));
+      const preview =
+        typeof termsJson.official === "string" && termsJson.official.trim()
+          ? termsJson.official.trim()
+          : null;
+      let full =
+        typeof termsJson.officialFull === "string" && termsJson.officialFull.trim()
+          ? termsJson.officialFull.trim()
+          : null;
+      let hasMore =
+        !!termsJson.officialHasMore && !!preview && !!(full && full.length > preview.length);
+      if (termsJson.officialHasMore && preview && !full) {
+        const extra = new URLSearchParams(tp);
+        extra.set("full", "1");
+        const fRes = await fetch(`/api/community/terms?${extra}`);
+        if (fRes.ok) {
+          const more = (await fRes.json()) as { official?: string | null; officialFull?: string | null };
+          const got =
+            (typeof more.officialFull === "string" && more.officialFull.trim()) ||
+            (typeof more.official === "string" && more.official.trim()) ||
+            "";
+          if (got && version === requestVersion.current) {
+            full = got;
+            hasMore = got.length > preview.length;
+          }
+        }
+      }
+      if (version !== requestVersion.current) return;
+      setOfficial(preview);
+      setOfficialFull(full);
+      setOfficialHasMore(hasMore || !!(full && preview && full.length > preview.length));
       setPosts(p.posts);
     } catch {
       if (version !== requestVersion.current) return;
@@ -371,9 +429,16 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
   }, [load]);
 
   const selectedGeneric = selectedMed ? shortName(selectedMed).generic : null;
+  const visibleOfficial =
+    (labelExpanded && officialFull ? officialFull : official) || null;
 
   const listenText = () => {
     const scope = selectedGeneric ? t.forMed(selectedGeneric) : t.forAll;
+    const officialLine = visibleOfficial
+      ? `${t.officialFor(selectedGeneric || t.thisMed)} ${visibleOfficial}`
+      : selectedMed
+        ? t.noLabelYet
+        : t.pickMed;
     const termLine = terms.length
       ? t.topTermsListen(
           scope,
@@ -393,7 +458,41 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
           p.body,
         ),
       );
-    return [termLine, ...postLines, t.notAdvice].join(" ");
+    return [officialLine, termLine, ...postLines, t.notAdvice].join(" ");
+  };
+
+  const requestSummary = async () => {
+    if (!selectedMed || summarizing) return;
+    setSummarizing(true);
+    setSummaryError("");
+    try {
+      const rx =
+        selectedMed.rxcui && !selectedMed.rxcui.startsWith("manual:")
+          ? selectedMed.rxcui
+          : undefined;
+      const res = await fetch("/api/community/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rxcui: rx,
+          name: selectedMed.ingredientName || selectedMed.name,
+          lang,
+        }),
+      });
+      const data = (await res.json().catch(() => ({}))) as {
+        summary?: string;
+        error?: string;
+      };
+      if (!res.ok || !data.summary?.trim()) {
+        setSummaryError(data.error || t.summarizeError);
+        return;
+      }
+      setSummary(data.summary.trim());
+    } catch {
+      setSummaryError(t.summarizeError);
+    } finally {
+      setSummarizing(false);
+    }
   };
 
   const shownTerms = terms.slice(0, 5);
@@ -467,6 +566,70 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
                 >
                   {t.showAll}
                 </button>
+              </p>
+            )}
+          </div>
+
+          <div
+            aria-labelledby={`${ids}-label-h`}
+            className="rounded-lg bg-md-surface-container-low border border-md-outline px-4 py-3 space-y-2"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 id={`${ids}-label-h`} className="eyebrow">
+                {t.fromLabel}
+              </h3>
+              {visibleOfficial && (
+                <ListenButton
+                  text={`${t.officialFor(selectedGeneric || t.thisMed)} ${visibleOfficial}`}
+                  label={t.listenLabel}
+                  size="sm"
+                  variant="outlined"
+                />
+              )}
+            </div>
+            {loading ? (
+              <p className="text-meta text-md-on-surface-variant">{t.loading}</p>
+            ) : visibleOfficial ? (
+              <>
+                <p className="text-meta text-md-on-surface-variant">
+                  {t.officialFor(selectedGeneric || t.thisMed)}
+                </p>
+                <p className="text-body text-md-on-background">{visibleOfficial}</p>
+                <div className="flex flex-wrap items-center gap-3">
+                  {officialHasMore && (
+                    <button
+                      type="button"
+                      onClick={() => setLabelExpanded((on) => !on)}
+                      className="text-meta font-medium text-md-tertiary underline underline-offset-4 rounded"
+                    >
+                      {labelExpanded ? t.seeLess : t.seeMore}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => void requestSummary()}
+                    disabled={summarizing}
+                    className="text-meta font-medium text-md-tertiary underline underline-offset-4 rounded disabled:opacity-50"
+                  >
+                    {summarizing ? t.summarizing : t.summarizeNow}
+                  </button>
+                </div>
+                {summary && (
+                  <div className="rounded-lg border border-md-outline bg-md-surface-container px-3 py-2 space-y-1.5">
+                    <p className="text-body text-md-on-background">{summary}</p>
+                    <p className="text-meta text-md-on-surface-variant">{t.aiDisclaimer}</p>
+                  </div>
+                )}
+                {summaryError && (
+                  <p role="alert" className="text-meta text-md-error">
+                    {summaryError}
+                  </p>
+                )}
+                <p className="text-meta text-md-on-surface-variant">{t.source}</p>
+              </>
+            ) : (
+              <p className="text-meta text-md-on-surface-variant">
+                {selectedMed ? t.noLabelYet : t.pickMed}
               </p>
             )}
           </div>

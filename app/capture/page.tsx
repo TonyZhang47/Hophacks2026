@@ -72,7 +72,7 @@ export default function CapturePage() {
       <p className="eyebrow">
         RxPlain · {es ? "Captura con el teléfono" : "Phone capture"}
       </p>
-      <h1 className="font-serif text-4xl">
+      <h1 className="font-serif text-page">
         {state === "sent"
           ? es
             ? "Ya está en camino."

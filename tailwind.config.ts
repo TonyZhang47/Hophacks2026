@@ -38,8 +38,10 @@ const config: Config = {
         sans: ["var(--font-inter)", "Inter", "system-ui", "sans-serif"],
       },
       fontSize: {
-        display: ["2.25rem", { lineHeight: "1.15", fontWeight: "600", letterSpacing: "-0.02em" }],
-        headline: ["1.5rem", { lineHeight: "1.25", fontWeight: "600", letterSpacing: "-0.01em" }],
+        display: ["2.25rem", { lineHeight: "1.15", fontWeight: "400", letterSpacing: "-0.02em" }],
+        page: ["2.25rem", { lineHeight: "1.15", fontWeight: "400", letterSpacing: "-0.02em" }],
+        headline: ["1.5rem", { lineHeight: "1.25", fontWeight: "400", letterSpacing: "-0.01em" }],
+        section: ["1.5rem", { lineHeight: "1.25", fontWeight: "400", letterSpacing: "-0.01em" }],
         title: ["1.125rem", { lineHeight: "1.35", fontWeight: "600" }],
         kpi: ["2rem", { lineHeight: "1.1", fontWeight: "600", letterSpacing: "-0.02em" }],
         body: ["1.0625rem", { lineHeight: "1.55" }],

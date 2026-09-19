@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowDown, ArrowRight, Leaf, Pill } from "lucide-react";
+import { Leaf, Pill } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { ListenButton } from "@/components/ui/ListenButton";
 import { Panel, PanelHeader } from "@/components/ui/Panel";
@@ -20,7 +20,6 @@ import type {
   DoseResult,
   InteractionCard,
   Med,
-  Severity,
 } from "@/lib/types";
 const DEMO: Med[] = [
   { name: "Warfarin", rxcui: "11289", ingredientName: "warfarin" },
@@ -91,46 +90,6 @@ export function MedsWorkspace() {
   }));
   return (
     <div className="space-y-8 pb-8">
-      <section className="editorial-hero">
-        <p className="eyebrow mb-5">
-          {es ? "Un poco de claridad, cada día" : "A little clarity, every day"}
-        </p>
-        <h1>
-          {es ? (
-            <>
-              Sus medicamentos.
-              <br />
-              <em>La vida cotidiana.</em>
-            </>
-          ) : (
-            <>
-              Your medicines.
-              <br />
-              <em>Meet everyday life.</em>
-            </>
-          )}
-        </h1>
-        <p className="hero-description">
-          {es
-            ? "Entienda cómo se relacionan sus alimentos y medicamentos. Lea su etiqueta y encuentre un ritmo para su día."
-            : "Understand how food and medicine fit together. Make sense of your bottle, and find a rhythm for your day."}
-        </p>
-        <div className="flex flex-wrap justify-center gap-3">
-          <a className="hero-button" href="#my-medicines">
-            {es ? "Empezar con mis medicamentos" : "Start with my medicines"}
-            <ArrowRight size={17} />
-          </a>
-          <a className="hero-secondary" href="#calendar">
-            {es ? "Abrir calendario" : "My calendar"}
-            <ArrowDown size={16} />
-          </a>
-        </div>
-        <p className="text-meta text-md-on-surface-variant mt-4">
-          {es
-            ? "Sin cuenta. Un espacio para entender."
-            : "No account needed. A space to understand."}
-        </p>
-      </section>
       <StatRow counts={counts} medCount={meds.length} maxMeds={10} />
       <div className="grid lg:grid-cols-[0.85fr_1.5fr] gap-6 items-start">
         <Panel id="my-medicines" className="scroll-mt-24">
@@ -215,6 +174,7 @@ export function MedsWorkspace() {
           <FoodMap results={results} onSelect={() => setFilter("all")} />
         </Panel>
       </div>
+      {checked && (
       <Panel
         ref={resultsRef}
         tabIndex={-1}
@@ -224,88 +184,78 @@ export function MedsWorkspace() {
         <PanelHeader
           title={es ? "Qué significa para usted" : "What it means for you"}
           actions={
-            checked ? (
-              <Select
-                label="Filter food results"
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-              >
-                <option value="all">
-                  {es ? "Todos los niveles" : "All levels"}
+            <Select
+              label="Filter food results"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+            >
+              <option value="all">
+                {es ? "Todos los niveles" : "All levels"}
+              </option>
+              {["major", "moderate", "minor", "unknown"].map((s) => (
+                <option key={s} value={s}>
+                  {s[0].toUpperCase() + s.slice(1)}
                 </option>
-                {["major", "moderate", "minor", "unknown"].map((s) => (
-                  <option key={s} value={s}>
-                    {s[0].toUpperCase() + s.slice(1)}
-                  </option>
-                ))}
-              </Select>
-            ) : undefined
+              ))}
+            </Select>
           }
         />
         <div aria-live="polite" className="grid md:grid-cols-2 gap-4">
-          {!checked ? (
-            <p className="text-md-on-surface-variant">
-              {es
-                ? "Agregue al menos un medicamento y revise los alimentos para empezar."
-                : "Add at least one medicine, then check foods to see your guide here."}
-            </p>
-          ) : (
-            results
-              .filter((r) => filter === "all" || r.severity === filter)
-              .map((r) => (
-                <article
-                  key={r.id}
-                  id={`food-${r.id}`}
-                  tabIndex={-1}
-                  className="food-result rounded-xl border border-md-outline p-5 space-y-3"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="eyebrow">{r.medicine.name}</p>
-                    <SeverityChip severity={r.severity} />
-                  </div>
-                  <h3 className="font-serif text-2xl">{r.food}</h3>
-                  <p>{r.explanation}</p>
-                  <p className="text-md-on-surface-variant">{r.guidance}</p>
-                  <div className="flex justify-between items-center gap-3 pt-2">
-                    {r.source ? (
-                      <a
-                        href={r.source}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-meta underline underline-offset-4"
-                      >
-                        {r.source.includes("fda.gov") ? "FDA" : "MedlinePlus"} ↗
-                      </a>
-                    ) : (
-                      <span className="text-meta">
-                        {es ? "Sin entrada verificada" : "No verified entry"}
-                      </span>
-                    )}
-                    <ListenButton
-                      text={`${r.medicine.name}. ${r.food}. ${r.severity}. ${r.explanation} ${r.guidance}`}
-                      label={es ? "Escuchar" : "Listen"}
-                      variant="outlined"
-                      size="sm"
-                    />
-                  </div>
-                </article>
-              ))
-          )}
+          {results
+            .filter((r) => filter === "all" || r.severity === filter)
+            .map((r) => (
+              <article
+                key={r.id}
+                id={`food-${r.id}`}
+                tabIndex={-1}
+                className="food-result rounded-xl border border-md-outline p-5 space-y-3"
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p className="eyebrow">{r.medicine.name}</p>
+                  <SeverityChip severity={r.severity} />
+                </div>
+                <h3 className="text-title">{r.food}</h3>
+                <p>{r.explanation}</p>
+                <p className="text-md-on-surface-variant">{r.guidance}</p>
+                <div className="flex justify-between items-center gap-3 pt-2">
+                  {r.source ? (
+                    <a
+                      href={r.source}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-meta underline underline-offset-4"
+                    >
+                      {r.source.includes("fda.gov") ? "FDA" : "MedlinePlus"} ↗
+                    </a>
+                  ) : (
+                    <span className="text-meta">
+                      {es ? "Sin entrada verificada" : "No verified entry"}
+                    </span>
+                  )}
+                  <ListenButton
+                    text={`${r.medicine.name}. ${r.food}. ${r.severity}. ${r.explanation} ${r.guidance}`}
+                    label={es ? "Escuchar" : "Listen"}
+                    variant="outlined"
+                    size="sm"
+                  />
+                </div>
+              </article>
+            ))}
         </div>
-        {checked &&
-          !results.some((r) => filter === "all" || r.severity === filter) && (
-            <p>
-              {es
-                ? "No hay resultados en este nivel."
-                : "No results at this level."}
-            </p>
-          )}
+        {!results.some((r) => filter === "all" || r.severity === filter) && (
+          <p>
+            {es
+              ? "No hay resultados en este nivel."
+              : "No results at this level."}
+          </p>
+        )}
         <p className="text-meta text-md-on-surface-variant mt-5">
           {es
             ? "Los niveles son ayudas de lectura de esta guía, no clasificaciones clínicas de MedlinePlus. Consulte antes de cambiar su dieta o medicamentos."
             : "Levels are this guide’s reading aids, not clinical ratings assigned by MedlinePlus. Check with a pharmacist before changing your diet or medicines."}
         </p>
       </Panel>
+      )}
       <DoseExplainer
         meds={meds}
         onResult={(r) =>

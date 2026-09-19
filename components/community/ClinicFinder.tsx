@@ -25,7 +25,7 @@ type Filters = { medicaid: boolean; medicare: boolean; slidingFee: boolean; rura
 
 const T = {
   en: {
-    title: "Find a clinic",
+    title: "Clinics",
     subtitle: "Community health centers and rural health clinics near a ZIP. We only use the ZIP, never your exact spot.",
     help: "Enter a ZIP code or use your location, then choose filters and press Find clinics.",
     zip: "ZIP code",
@@ -59,25 +59,13 @@ const T = {
     coverage: "Coverage",
     call: "Call",
     listen: (name: string) => `Listen: ${name}`,
-    hide: "Hide",
-    addWhat: "Add what you learned",
     callConfirm: "Call to confirm.",
     callConfirmRest: "Program rules say what a clinic must accept; only the clinic can tell you about your plan.",
     yes: (n: number) => `${n} yes`,
     no: (n: number) => `${n} no`,
-    iCalled: "I called — they take…",
-    communityReported: "(community reported, anonymous)",
-    insurer: "Insurer",
-    insurerPh: "Insurer, e.g. Blue Cross",
-    yesBtn: "Yes",
-    noBtn: "No",
-    insurerFirst: "Type the insurer's name first (for example, Blue Cross).",
-    saveFail: "We couldn't save that. Please try again.",
-    thanks: "Thanks — added to what people here reported.",
-    saving: "Saving…",
   },
   es: {
-    title: "Buscar una clínica",
+    title: "Clínicas",
     subtitle: "Centros de salud comunitarios y clínicas rurales cerca de un código postal. Solo usamos el ZIP, nunca su ubicación exacta.",
     help: "Escriba un código postal o use su ubicación, elija filtros y pulse Buscar clínicas.",
     zip: "Código postal",
@@ -111,22 +99,10 @@ const T = {
     coverage: "Cobertura",
     call: "Llamar",
     listen: (name: string) => `Escuchar: ${name}`,
-    hide: "Ocultar",
-    addWhat: "Agregar lo que supo",
     callConfirm: "Llame para confirmar.",
     callConfirmRest: "Las reglas del programa dicen lo que una clínica debe aceptar; solo la clínica puede hablarle de su plan.",
     yes: (n: number) => `${n} sí`,
     no: (n: number) => `${n} no`,
-    iCalled: "Llamé — aceptan…",
-    communityReported: "(reportado por la comunidad, anónimo)",
-    insurer: "Aseguradora",
-    insurerPh: "Aseguradora, ej. Blue Cross",
-    yesBtn: "Sí",
-    noBtn: "No",
-    insurerFirst: "Escriba primero el nombre de la aseguradora (por ejemplo, Blue Cross).",
-    saveFail: "No pudimos guardar eso. Inténtelo de nuevo.",
-    thanks: "Gracias — se agregó a lo que la gente reportó aquí.",
-    saving: "Guardando…",
   },
 } as const;
 
@@ -256,11 +232,6 @@ export function ClinicFinder({ className = "", showHeader = true }: { className?
     );
   };
 
-  const refresh = () => {
-    if (coords) void search(coords);
-    else if (/^\d{5}$/.test(zip)) void search({ zip });
-  };
-
   const results = data?.results ?? [];
 
   return (
@@ -336,7 +307,7 @@ export function ClinicFinder({ className = "", showHeader = true }: { className?
             ) : (
               <ul className="space-y-3 list-none p-0 m-0 max-h-[65vh] overflow-y-auto pr-1">
                 {results.map((c) => (
-                  <ClinicRow key={c.clinic_id} clinic={c} lang={lang} onConfirmed={refresh} />
+                  <ClinicRow key={c.clinic_id} clinic={c} lang={lang} />
                 ))}
               </ul>
             )}
@@ -347,10 +318,8 @@ export function ClinicFinder({ className = "", showHeader = true }: { className?
   );
 }
 
-function ClinicRow({ clinic: c, lang, onConfirmed }: { clinic: ClinicResult; lang: Lang; onConfirmed: () => void }) {
+function ClinicRow({ clinic: c, lang }: { clinic: ClinicResult; lang: Lang }) {
   const t = T[lang];
-  const [open, setOpen] = useState(false);
-  const ids = useId();
   const address = [c.address, [c.city, c.state].filter(Boolean).join(", "), c.zip].filter(Boolean).join(" · ");
   const coverageWords =
     c.accepts_medicaid && c.accepts_medicare
@@ -406,94 +375,11 @@ function ClinicRow({ clinic: c, lang, onConfirmed }: { clinic: ClinicResult; lan
           </a>
         )}
         <ListenButton text={describeForAudio(c, lang)} label={t.listen(c.name)} iconOnly size="sm" variant="outlined" />
-        <Button
-          type="button"
-          variant="text"
-          size="sm"
-          onClick={() => setOpen((o) => !o)}
-          aria-expanded={open}
-          aria-controls={`${ids}-confirm`}
-          className="ml-auto"
-        >
-          {open ? t.hide : t.addWhat}
-        </Button>
       </div>
 
       <p className="text-meta text-md-on-surface-variant">
         <span className="font-medium text-md-on-background">{t.callConfirm}</span> {t.callConfirmRest}
       </p>
-
-      <div id={`${ids}-confirm`} hidden={!open}>
-        {open && <ConfirmForm clinicId={c.clinic_id} lang={lang} onDone={onConfirmed} />}
-      </div>
     </Card>
-  );
-}
-
-function ConfirmForm({ clinicId, lang, onDone }: { clinicId: string; lang: Lang; onDone: () => void }) {
-  const t = T[lang];
-  const [insurer, setInsurer] = useState("");
-  const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
-  const [err, setErr] = useState<string>("");
-  const id = useId();
-
-  const send = async (confirmed: boolean) => {
-    const label = insurer.trim();
-    if (label.length < 2) {
-      setErr(t.insurerFirst);
-      return;
-    }
-    setErr("");
-    setState("sending");
-    try {
-      const res = await fetch("/api/clinics/confirm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ clinicId, insurer: label, confirmed }),
-      });
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        setErr(body.error ?? t.saveFail);
-        setState("error");
-        return;
-      }
-      setState("sent");
-      setInsurer("");
-      onDone();
-    } catch {
-      setErr(t.saveFail);
-      setState("error");
-    }
-  };
-
-  return (
-    <div className="rounded-xl bg-md-surface-container-low p-3 space-y-2">
-      <p id={`${id}-label`} className="text-meta font-medium text-md-on-surface-variant">
-        {t.iCalled} <span className="font-normal">{t.communityReported}</span>
-      </p>
-      <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
-        <TextField
-          label={t.insurer}
-          hideLabel
-          placeholder={t.insurerPh}
-          value={insurer}
-          maxLength={40}
-          onChange={(e) => setInsurer(e.target.value)}
-          aria-describedby={`${id}-label`}
-          className="sm:flex-1"
-        />
-        <div className="flex gap-2">
-          <Button type="button" variant="tonal" className="h-11" onClick={() => send(true)} disabled={state === "sending"}>
-            {t.yesBtn}
-          </Button>
-          <Button type="button" variant="outlined" className="h-11" onClick={() => send(false)} disabled={state === "sending"}>
-            {t.noBtn}
-          </Button>
-        </div>
-      </div>
-      <p role="status" className={`text-meta ${err ? "text-md-error" : "text-md-on-surface-variant"}`}>
-        {err ? err : state === "sent" ? t.thanks : state === "sending" ? t.saving : ""}
-      </p>
-    </div>
   );
 }

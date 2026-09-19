@@ -12,23 +12,22 @@ import { Panel, PanelHeader } from "@/components/ui/Panel";
 import { Button } from "@/components/ui/Button";
 import { TextField, Select } from "@/components/ui/TextField";
 import { useLang } from "@/components/LanguageContext";
+import {
+  CALENDAR_EVENT,
+  CALENDAR_KEY,
+  loadCalendarEntries,
+  localDay,
+  saveCalendarEntries,
+  type CalendarEntry,
+} from "@/lib/calendar";
 import type { Med } from "@/lib/types";
-type Entry = {
-  id: string;
-  medicine: string;
-  scheduled: string;
-  status: "planned" | "taken";
-  takenAt?: string;
-  note: string;
-};
-const KEY = "rxplain.calendar.v1";
-export function localDay(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
+
+export { localDay };
+
 export function MedicationCalendar({ meds }: { meds: Med[] }) {
   const { lang } = useLang();
   const es = lang === "es";
-  const [entries, setEntries] = useState<Entry[]>([]);
+  const [entries, setEntries] = useState<CalendarEntry[]>([]);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState("");
   const [day, setDay] = useState("");
@@ -45,30 +44,34 @@ export function MedicationCalendar({ meds }: { meds: Med[] }) {
     setDay(today);
     setMonth(today.slice(0, 7));
     try {
-      const data = JSON.parse(localStorage.getItem(KEY) || "[]");
-      if (Array.isArray(data))
-        setEntries(
-          data.filter(
-            (e) =>
-              e &&
-              typeof e.id === "string" &&
-              typeof e.medicine === "string" &&
-              typeof e.note === "string" &&
-              /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(e.scheduled) &&
-              ["planned", "taken"].includes(e.status),
-          ),
-        );
+      setEntries(loadCalendarEntries());
     } catch {
       setError(
         "Saved entries could not be loaded. New entries will stay in this tab.",
       );
     }
     setReady(true);
+    function refresh() {
+      try {
+        setEntries(loadCalendarEntries());
+      } catch {
+        /* keep current rows */
+      }
+    }
+    window.addEventListener(CALENDAR_EVENT, refresh);
+    function onStorage(e: StorageEvent) {
+      if (e.key === null || e.key === CALENDAR_KEY) refresh();
+    }
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener(CALENDAR_EVENT, refresh);
+      window.removeEventListener("storage", onStorage);
+    };
   }, []);
-  function save(next: Entry[]) {
+  function save(next: CalendarEntry[]) {
     setEntries(next);
     try {
-      localStorage.setItem(KEY, JSON.stringify(next));
+      saveCalendarEntries(next);
       setError("");
     } catch {
       setError(
@@ -90,7 +93,7 @@ export function MedicationCalendar({ meds }: { meds: Med[] }) {
       );
       return;
     }
-    const added: Entry[] = [];
+    const added: CalendarEntry[] = [];
     for (
       let i = 0;
       i < (repeat && status === "planned" && !editing ? 7 : 1);
@@ -149,7 +152,7 @@ export function MedicationCalendar({ meds }: { meds: Med[] }) {
             >
               <ChevronLeft size={18} />
             </Button>
-            <h3 className="font-serif text-2xl">
+            <h3 className="text-title">
               {start?.toLocaleDateString(es ? "es" : "en-US", {
                 month: "long",
                 year: "numeric",
@@ -231,7 +234,7 @@ export function MedicationCalendar({ meds }: { meds: Med[] }) {
         </div>
         <div>
           <form onSubmit={submit} className="space-y-3">
-            <h3 className="font-serif text-2xl">
+            <h3 className="text-title">
               {editing
                 ? es
                   ? "Editar entrada"
@@ -341,7 +344,7 @@ export function MedicationCalendar({ meds }: { meds: Med[] }) {
         </div>
       </div>
       <div className="border-t border-md-outline mt-6 pt-5">
-        <h3 className="font-serif text-2xl mb-3">
+        <h3 className="text-title mb-3">
           {day
             ? new Date(`${day}T12:00`).toLocaleDateString(es ? "es" : "en-US", {
                 weekday: "long",

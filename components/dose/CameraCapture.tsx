@@ -83,7 +83,7 @@ export function CameraCapture({
       aria-label="Camera preview"
     >
       <div className="flex justify-between items-center">
-        <h3 className="font-medium">
+        <h3 className="text-title font-normal">
           {es ? "Capturar etiqueta" : "Capture your label"}
         </h3>
         <button

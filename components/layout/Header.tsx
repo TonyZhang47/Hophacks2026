@@ -6,9 +6,9 @@ import { LANGS, useLang, type Lang } from "@/components/LanguageContext";
 import { ListenButton } from "@/components/ui/ListenButton";
 
 const NAV = [
-  { href: "/", label: { en: "Meds", es: "Medicamentos" } },
+  { href: "/meds", label: { en: "Meds", es: "Medicamentos" } },
+  { href: "/clinics", label: { en: "Clinics", es: "Clínicas" } },
   { href: "/community", label: { en: "Community", es: "Comunidad" } },
-  { href: "/clinics", label: { en: "Find a clinic", es: "Buscar clínica" } },
 ];
 
 function visibleBlockText(el: Element): string {
@@ -49,12 +49,11 @@ export function Header() {
           <span className="h-8 w-8 rounded-lg bg-md-primary text-md-on-primary grid place-items-center text-label font-semibold">
             Rx
           </span>
-          <span className="font-serif text-3xl tracking-tight">RxPlain</span>
+          <span className="font-serif text-section font-normal">RxPlain</span>
         </Link>
         <nav aria-label="Primary" className="flex items-center gap-1 sm:ml-4">
           {NAV.map((n) => {
-            const active =
-              n.href === "/" ? pathname === "/" : pathname.startsWith(n.href);
+            const active = pathname === n.href || pathname.startsWith(`${n.href}/`);
             return (
               <Link
                 key={n.href}

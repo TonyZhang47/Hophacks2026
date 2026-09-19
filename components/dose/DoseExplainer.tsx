@@ -12,6 +12,7 @@ import { PlainText } from "@/components/ui/PlainText";
 import { StatusPill } from "@/components/ui/SeverityChip";
 import { Select, TextField } from "@/components/ui/TextField";
 import { capitalize, displayName, genericFor, shortName } from "@/lib/plainNames";
+import { addPlannedDoses, suggestedTimes } from "@/lib/calendar";
 import type { DoseInput, DoseResult, Med } from "@/lib/types";
 
 export interface DoseExplainerProps {
@@ -72,6 +73,15 @@ const T = {
     disclaimer: "Educational only. Talk with a pharmacist or doctor before changing how you take any medicine.",
     networkError: "Something went wrong. Please try again.",
     startOver: "Start over",
+    addToCalendar: "Add this to my calendar",
+    calendarHint:
+      "Saved only in this browser. This is a log of the times you choose — not a reminder or a recommended schedule.",
+    calendarMedicine: "Calendar medicine name",
+    calendarTimes: "Times",
+    calendarRepeat: "Repeat daily for 7 days",
+    calendarNote: "Optional note",
+    calendarSaved: "Added to your calendar.",
+    calendarFailed: "Could not save to the calendar on this device.",
   },
   es: {
     heading: "Cuánto y cuándo",
@@ -117,6 +127,15 @@ const T = {
     disclaimer: "Solo con fines educativos. Hable con un farmacéutico o médico antes de cambiar cómo toma cualquier medicamento.",
     networkError: "Algo salió mal. Inténtelo de nuevo.",
     startOver: "Empezar de nuevo",
+    addToCalendar: "Agregar a mi calendario",
+    calendarHint:
+      "Se guarda solo en este navegador. Es un registro de los horarios que elija, no un recordatorio ni una pauta de dosis.",
+    calendarMedicine: "Nombre en el calendario",
+    calendarTimes: "Horarios",
+    calendarRepeat: "Repetir diariamente durante 7 días",
+    calendarNote: "Nota opcional",
+    calendarSaved: "Agregado a su calendario.",
+    calendarFailed: "No se pudo guardar en el calendario de este dispositivo.",
   },
 } as const;
 
@@ -205,6 +224,12 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
   const [input, setInput] = useState<DoseInput | null>(null);
   const [result, setResult] = useState<DoseResult | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [addToCalendar, setAddToCalendar] = useState(false);
+  const [calName, setCalName] = useState("");
+  const [calTimes, setCalTimes] = useState<string[]>(["08:00"]);
+  const [calRepeat, setCalRepeat] = useState(false);
+  const [calNote, setCalNote] = useState("");
+  const [calMsg, setCalMsg] = useState("");
 
   const selectedMed = useMemo(() => meds.find((m) => m.rxcui === medChoice) ?? null, [meds, medChoice]);
   const hasPicker = meds.length > 0;
@@ -230,6 +255,12 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
       if (!res.ok) throw new Error(`parse ${res.status}`);
       const data = (await res.json()) as { input: DoseInput };
       setInput(data.input);
+      setAddToCalendar(false);
+      setCalName(data.input.drugName || otherName.trim() || med?.name || "");
+      setCalTimes(suggestedTimes(data.input.timesPerDay));
+      setCalRepeat(false);
+      setCalNote(data.input.howOftenText || "");
+      setCalMsg("");
       setPhase("confirm");
     } catch {
       setErrorMsg(t.networkError);
@@ -264,6 +295,23 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
   async function checkIt() {
     if (!input) return;
     setErrorMsg("");
+    setCalMsg("");
+    if (addToCalendar) {
+      try {
+        const name = calName.trim() || input.drugName.trim();
+        const added = name
+          ? addPlannedDoses({
+              medicine: name,
+              times: calTimes,
+              days: calRepeat ? 7 : 1,
+              note: calNote,
+            })
+          : [];
+        setCalMsg(added.length ? t.calendarSaved : t.calendarFailed);
+      } catch {
+        setCalMsg(t.calendarFailed);
+      }
+    }
     setPhase("checking");
     try {
       const res = await fetch("/api/dose/explain", {
@@ -287,6 +335,8 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
     setInput(null);
     setResult(null);
     setErrorMsg("");
+    setCalMsg("");
+    setAddToCalendar(false);
   }
 
   const busy = phase === "parsing" || phase === "checking";
@@ -399,6 +449,57 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
             <p className="text-meta text-md-on-surface-variant">
               {t.youWrote}: “{input.userText}”
             </p>
+            <label className="flex items-start gap-2 text-label">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={addToCalendar}
+                onChange={(e) => setAddToCalendar(e.target.checked)}
+                disabled={busy}
+              />
+              <span>{t.addToCalendar}</span>
+            </label>
+            {addToCalendar && (
+              <div className="space-y-3 rounded-lg border border-md-outline bg-md-surface-container p-3">
+                <p className="text-meta text-md-on-surface-variant">{t.calendarHint}</p>
+                <TextField
+                  label={t.calendarMedicine}
+                  value={calName}
+                  onChange={(e) => setCalName(e.target.value)}
+                  maxLength={100}
+                  required
+                />
+                <div className="grid grid-cols-2 gap-3">
+                  {calTimes.map((time, i) => (
+                    <TextField
+                      key={i}
+                      label={`${t.calendarTimes} ${i + 1}`}
+                      type="time"
+                      value={time}
+                      onChange={(e) =>
+                        setCalTimes((prev) => prev.map((x, j) => (j === i ? e.target.value : x)))
+                      }
+                      required
+                    />
+                  ))}
+                </div>
+                <label className="flex items-center gap-2 text-meta">
+                  <input
+                    type="checkbox"
+                    checked={calRepeat}
+                    onChange={(e) => setCalRepeat(e.target.checked)}
+                    disabled={busy}
+                  />
+                  {t.calendarRepeat}
+                </label>
+                <TextField
+                  label={t.calendarNote}
+                  value={calNote}
+                  onChange={(e) => setCalNote(e.target.value)}
+                  maxLength={200}
+                />
+              </div>
+            )}
             <div className="flex flex-wrap items-center gap-2">
               <Button size="md" onClick={() => void checkIt()} disabled={busy}>
                 {phase === "checking" ? t.checking : t.checkIt}
@@ -407,6 +508,11 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
                 {t.edit}
               </Button>
             </div>
+            {calMsg && (
+              <p role="status" className="text-meta text-md-on-surface-variant">
+                {calMsg}
+              </p>
+            )}
           </section>
         )}
 
@@ -421,6 +527,11 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
           {phase === "done" && result && (
             <>
               {result.status === "consistent" ? <ConsistentWell result={result} lang={lang} /> : <FailClosedWell result={result} lang={lang} />}
+              {calMsg && (
+                <p role="status" className="text-meta text-md-on-surface-variant">
+                  {calMsg}
+                </p>
+              )}
               <Button variant="text" size="sm" onClick={reset}>
                 {t.startOver}
               </Button>

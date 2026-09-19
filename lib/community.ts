@@ -2,7 +2,9 @@ import "server-only";
 import { randomUUID } from "crypto";
 import { getDb } from "@/lib/db";
 import { TtlCache } from "@/lib/http";
+import { chatText, isXaiConfigured } from "@/lib/llm";
 import { moderatePost } from "@/lib/moderation";
+import { cleanOfficialLabel, joinAdverseChunks, toOfficialLabel, type OfficialLabel } from "@/lib/communityLabel";
 import { getSections } from "@/lib/openfda";
 import { SIDE_EFFECT_TAGS, type CommunityPost, type SideEffectTag, type TopTerm } from "@/lib/types";
 
@@ -89,24 +91,76 @@ export async function topTerms(rxcui?: string, limit = 15, name?: string): Promi
 
 // ---- official adverse reactions ("From the label") ----------------------------------------------
 
-const officialCache = new TtlCache<string | null>(6 * 60 * 60 * 1000);
+const officialCache = new TtlCache<OfficialLabel | null>(6 * 60 * 60 * 1000);
 
-/** First adverse_reactions chunk from openFDA (seeded or live), trimmed to 500 chars. Null when unavailable. */
-export async function officialAdverseReactions(rxcui: string, ingredient: string): Promise<string | null> {
+export type { OfficialLabel };
+
+/** Full adverse_reactions section from openFDA, copy-edited then cached by rxcui. */
+export async function officialAdverseReactions(rxcui: string, ingredient: string): Promise<OfficialLabel | null> {
   const key = `official:${rxcui}`;
   const hit = officialCache.get(key);
   if (hit !== undefined) return hit;
-  let out: string | null = null;
+  let out: OfficialLabel | null = null;
   try {
     const chunks = await getSections(rxcui, ingredient, ["adverse_reactions"]);
-    const first = chunks.find((c) => c.text.trim().length > 0);
-    if (first) {
-      const text = first.text.replace(/^\s*\d+\s+ADVERSE REACTIONS\s*/i, "").replace(/\s+/g, " ").trim();
-      out = text.length > 500 ? `${text.slice(0, 497).replace(/\s+\S*$/, "")}…` : text;
+    const joined = joinAdverseChunks(chunks.map((c) => c.text));
+    if (joined) {
+      out = toOfficialLabel(await cleanOfficialLabel(joined));
     }
   } catch {
     out = null;
   }
   officialCache.set(key, out);
   return out;
+}
+
+const summaryCache = new TtlCache<string>(6 * 60 * 60 * 1000);
+
+const SUMMARIZE_SYSTEM = `You summarize FDA adverse-reactions label text for a reader with no medical training.
+Write 4 to 8 short sentences in the requested language.
+Only use facts that appear in the label text. Do not invent side effects, frequencies, or advice.
+Do not tell the reader to change their dose or stop a medicine.
+If the text is mostly cross-references, name the reactions listed and say the full details are in other label sections.
+Output only the summary. No preamble, bullets unless the label itself is a list of names, or markdown headings.`;
+
+export class SummarizeError extends Error {
+  constructor(
+    message: string,
+    public readonly code: "unavailable" | "nolabel" | "failed",
+  ) {
+    super(message);
+    this.name = "SummarizeError";
+  }
+}
+
+/** Opt-in Grok summary of the cleaned official label. Cached by rxcui + language. */
+export async function summarizeOfficialLabel(
+  rxcui: string,
+  ingredient: string,
+  lang: "en" | "es",
+): Promise<string> {
+  const key = `summary:${lang}:${rxcui}`;
+  const hit = summaryCache.get(key);
+  if (hit) return hit;
+  if (!isXaiConfigured()) throw new SummarizeError("AI summarizer is not configured.", "unavailable");
+  const label = await officialAdverseReactions(rxcui, ingredient);
+  const source = label?.full?.trim();
+  if (!source) throw new SummarizeError("No label text on file for this medicine yet.", "nolabel");
+  try {
+    const summary = (
+      await chatText(
+        SUMMARIZE_SYSTEM,
+        `Language: ${lang === "es" ? "Spanish" : "English"}\n\nLabel:\n${source.slice(0, 8000)}`,
+        { temperature: 0, maxTokens: 800 },
+      )
+    )
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!summary) throw new SummarizeError("The summarizer returned nothing.", "failed");
+    summaryCache.set(key, summary);
+    return summary;
+  } catch (e) {
+    if (e instanceof SummarizeError) throw e;
+    throw new SummarizeError("We couldn't summarize that right now.", "failed");
+  }
 }
