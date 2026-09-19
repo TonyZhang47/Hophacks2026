@@ -1,9 +1,72 @@
-node_modules
-.next
-out
-.env*.local
+# dependencies
+node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# next.js / build
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+
+# env and secrets (keep the example)
 .env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.key
+credentials.json
+snowflake_*.p8
+
+# logs and debug
+logs/
 *.log
-.DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-debug.log*
+
+# test / coverage
+coverage/
+.nyc_output/
+
+# caches and generated assets
+.turbo/
+.cache/
+tmp/
+temp/
+uploads/
+public/uploads/
+imagine-cache/
+
+# vercel / digitalocean
 .vercel
-tsconfig.tsbuildinfo
+.do/
+
+# os
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# editors
+.idea/
+*.swp
+*.swo
+*~
+
+# python (scripts / notebooks)
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# nested clone of the GitHub starter (LICENSE + README only)
+/Hophacks2026/
