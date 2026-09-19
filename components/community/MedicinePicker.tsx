@@ -22,7 +22,7 @@ export function MedicinePicker({
   const [other, setOther] = useState(false);
   const custom = value && !OPTIONS.some((m) => m.rxcui === value.rxcui);
   return (
-    <div className="w-full max-w-sm space-y-2">
+    <div className="w-full max-w-md space-y-2">
       <Select
         label={label}
         value={other ? "__other__" : value?.rxcui || ""}

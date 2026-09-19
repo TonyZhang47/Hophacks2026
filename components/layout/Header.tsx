@@ -8,6 +8,7 @@ import { ListenButton } from "@/components/ui/ListenButton";
 const NAV = [
   { href: "/", label: { en: "Meds", es: "Medicamentos" } },
   { href: "/community", label: { en: "Community", es: "Comunidad" } },
+  { href: "/clinics", label: { en: "Find a clinic", es: "Buscar clínica" } },
 ];
 
 function visibleBlockText(el: Element): string {

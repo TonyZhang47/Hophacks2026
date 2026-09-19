@@ -168,7 +168,7 @@ function describeForAudio(c: ClinicResult, lang: Lang) {
   return `${c.name}, ${miles} away.${phone ? ` Phone ${phone}.` : ""}${cov} Call to confirm.`;
 }
 
-export function ClinicFinder({ className = "" }: { className?: string }) {
+export function ClinicFinder({ className = "", showHeader = true }: { className?: string; showHeader?: boolean }) {
   const { lang } = useLang();
   const t = T[lang];
   const [zip, setZip] = useState("");
@@ -265,7 +265,7 @@ export function ClinicFinder({ className = "" }: { className?: string }) {
 
   return (
     <Panel className={className} aria-label={t.title}>
-      <PanelHeader icon={MapPin} title={t.title} subtitle={t.subtitle} />
+      {showHeader && <PanelHeader icon={MapPin} title={t.title} subtitle={t.subtitle} />}
 
       <form onSubmit={onSubmit} className="space-y-3" aria-describedby={`${ids}-help`}>
         <p id={`${ids}-help`} className="sr-only">

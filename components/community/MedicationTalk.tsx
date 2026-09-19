@@ -10,13 +10,13 @@ import {
 } from "react";
 import { MedicinePicker } from "@/components/community/MedicinePicker";
 import { useLang, type Lang } from "@/components/LanguageContext";
-import { MessageSquare, Send } from "lucide-react";
+import { Send } from "lucide-react";
 import commonMeds from "@/data/common_meds.json";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { Chip } from "@/components/ui/Chip";
 import { ListenButton } from "@/components/ui/ListenButton";
-import { Panel, PanelHeader } from "@/components/ui/Panel";
+import { Panel } from "@/components/ui/Panel";
 import { PlainText } from "@/components/ui/PlainText";
 import { TextArea } from "@/components/ui/TextField";
 import { shortName } from "@/lib/plainNames";
@@ -202,7 +202,7 @@ const T = {
     title: "Medication talk",
     subtitle: "What people say about their own side effects. Experiences, not advice.",
     listen: "Listen",
-    selectedMed: "Selected medicine",
+    selectedMed: "Which medicine's posts?",
     topTerms: (name: string) => `Top terms for ${name}`,
     allMeds: "your selected medicine",
     loading: "Loading…",
@@ -254,7 +254,7 @@ const T = {
     title: "Conversación sobre medicamentos",
     subtitle: "Lo que las personas dicen de sus propios efectos secundarios. Experiencias, no consejos.",
     listen: "Escuchar",
-    selectedMed: "Medicamento seleccionado",
+    selectedMed: "¿De qué medicamento quiere ver publicaciones?",
     topTerms: (name: string) => `Términos más mencionados para ${name}`,
     allMeds: "el medicamento seleccionado",
     loading: "Cargando…",
@@ -311,7 +311,6 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
   const [selectedMed, setSelectedMed] = useState<Med | null>(findMed("6809"));
   const [term, setTerm] = useState<string | null>(null);
   const [terms, setTerms] = useState<TopTerm[]>([]);
-  const [official, setOfficial] = useState<string | null>(null);
   const [posts, setPosts] = useState<CommunityPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -323,7 +322,6 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
     setLoading(true);
     setTerms([]);
     setPosts([]);
-    setOfficial(null);
     setLoadError("");
     const rx =
       selectedMed?.rxcui && !selectedMed.rxcui.startsWith("manual:")
@@ -342,6 +340,7 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
     if (rx) pp.set("rxcui", rx);
     if (term) pp.set("term", term);
     pp.set("limit", "30");
+    tp.set("limit", "5");
     try {
       const [tRes, pRes] = await Promise.all([
         fetch(`/api/community/terms?${tp}`),
@@ -354,8 +353,7 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
       };
       const p = (await pRes.json()) as { posts: CommunityPost[] };
       if (version !== requestVersion.current) return;
-      setTerms(t.terms);
-      setOfficial(t.official);
+      setTerms((t.terms ?? []).slice(0, 5));
       setPosts(p.posts);
     } catch {
       if (version !== requestVersion.current) return;
@@ -380,7 +378,7 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
       ? t.topTermsListen(
           scope,
           terms
-            .slice(0, 8)
+            .slice(0, 5)
             .map((x) => `${x.term}, ${x.count}`)
             .join("; "),
         )
@@ -398,14 +396,13 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
     return [termLine, ...postLines, t.notAdvice].join(" ");
   };
 
+  const shownTerms = terms.slice(0, 5);
+
   return (
     <Panel className={className} aria-label={t.panel}>
-      <PanelHeader
-        icon={MessageSquare}
-        title={t.title}
-        subtitle={t.subtitle}
-        actions={
-          <>
+      <div className="space-y-8 max-w-3xl">
+        <section className="space-y-4">
+          <div className="flex flex-wrap items-end justify-between gap-3">
             <MedicinePicker
               label={t.selectedMed}
               value={selectedMed}
@@ -421,18 +418,13 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
               variant="outlined"
               label={t.listen}
             />
-          </>
-        }
-      />
+          </div>
 
-      <div className="grid gap-5 lg:grid-cols-5">
-        {/* Left: top terms + official label */}
-        <div className="lg:col-span-2 space-y-5 min-w-0">
-          <section aria-labelledby={`${ids}-terms-h`} className="space-y-2">
+          <div aria-labelledby={`${ids}-terms-h`} className="space-y-2">
             <h3 id={`${ids}-terms-h`} className="eyebrow">
               {t.topTerms(selectedGeneric || t.allMeds)}
             </h3>
-            {terms.length === 0 ? (
+            {shownTerms.length === 0 ? (
               <p className="text-meta text-md-on-surface-variant">
                 {loading ? t.loading : t.noTerms}
               </p>
@@ -441,7 +433,7 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
                 className="flex flex-wrap gap-2 list-none p-0 m-0"
                 aria-label={t.termsAria}
               >
-                {terms.map((item) => (
+                {shownTerms.map((item) => (
                   <li key={item.term}>
                     <Chip
                       selected={term === item.term}
@@ -477,121 +469,88 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
                 </button>
               </p>
             )}
-          </section>
+          </div>
+        </section>
 
-          <section
-            aria-labelledby={`${ids}-official-h`}
-            className="bg-md-surface-container-low rounded-xl p-4 space-y-2"
+        <PostForm handle={handle} selectedMed={selectedMed} onPosted={load} lang={lang} />
+
+        <p className="text-meta text-md-on-surface-variant">
+          {t.ifWorries}{" "}
+          <a
+            href={MEDWATCH}
+            target="_blank"
+            rel="noreferrer"
+            className="text-md-tertiary underline underline-offset-4"
           >
-            <div className="flex items-center justify-between gap-2">
-              <h3 id={`${ids}-official-h`} className="eyebrow">
-                {t.fromLabel}
-              </h3>
-              {official && (
-                <ListenButton
-                  text={`${t.officialFor(selectedGeneric ?? t.thisMed)} ${official}`}
-                  label={t.listenLabel}
-                  iconOnly
-                  size="sm"
-                  variant="outlined"
-                />
-              )}
-            </div>
-            {official ? (
-              <PlainText as="p" text={official} className="text-body" />
-            ) : (
-              <p className="text-meta text-md-on-surface-variant">
-                {selectedMed ? t.noLabelYet : t.pickMed}
-              </p>
-            )}
-            <p className="text-meta text-md-on-surface-variant">
-              {t.source}
+            {t.report}
+          </a>
+          .
+        </p>
+
+        <section
+          aria-labelledby={`${ids}-posts-h`}
+          aria-live="polite"
+          aria-busy={loading}
+          className="space-y-2"
+        >
+          <h3 id={`${ids}-posts-h`} className="eyebrow">
+            {t.whatPeople}
+          </h3>
+          {loadError && (
+            <p role="alert" className="text-meta text-md-error">
+              {loadError}
             </p>
-          </section>
-        </div>
-
-        {/* Right: post form + list */}
-        <div className="lg:col-span-3 space-y-4 min-w-0">
-          <PostForm handle={handle} selectedMed={selectedMed} onPosted={load} lang={lang} />
-
-          <p className="text-meta text-md-on-surface-variant">
-            {t.ifWorries}{" "}
-            <a
-              href={MEDWATCH}
-              target="_blank"
-              rel="noreferrer"
-              className="text-md-tertiary underline underline-offset-4"
-            >
-              {t.report}
-            </a>
-            .
-          </p>
-
-          <section
-            aria-labelledby={`${ids}-posts-h`}
-            aria-live="polite"
-            aria-busy={loading}
-            className="space-y-2"
-          >
-            <h3 id={`${ids}-posts-h`} className="eyebrow">
-              {t.whatPeople}
-            </h3>
-            {loadError && (
-              <p role="alert" className="text-meta text-md-error">
-                {loadError}
-              </p>
-            )}
-            {!loading && !loadError && posts.length === 0 && (
-              <p className="text-meta text-md-on-surface-variant">
-                {t.noPosts}
-              </p>
-            )}
-            {posts.length > 0 && (
-              <ul className="space-y-3 list-none p-0 m-0 max-h-[60vh] overflow-y-auto pr-1">
-                {posts.map((p) => (
-                  <Card as="li" key={p.post_id} dense className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2 text-meta text-md-on-surface-variant">
-                      <Chip asSpan className="h-7 px-2.5">
-                        {
-                          shortName({
-                            name: p.drug_name,
-                            rxcui: p.rxcui ?? "",
-                            ingredientName: p.drug_name,
-                          }).generic
-                        }
-                      </Chip>
-                      <span className="font-medium text-md-on-background">
-                        {p.anon_handle}
-                      </span>
-                      <span aria-hidden="true">·</span>
-                      <time dateTime={p.created_at}>
-                        {relativeTime(p.created_at, lang)}
-                      </time>
-                    </div>
-                    <PlainText as="p" text={p.body} className="text-body" />
-                    {p.side_effect_tags.length > 0 && (
-                      <ul
-                        className="flex flex-wrap gap-2 list-none p-0 m-0"
-                        aria-label={t.tags}
-                      >
-                        {p.side_effect_tags.map((tag) => (
-                          <li key={tag}>
-                            <Chip
-                              asSpan
-                              className="h-7 px-2.5 bg-md-surface-container-low"
-                            >
-                              {TAG_LABEL[lang][tag] ?? tag}
-                            </Chip>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                  </Card>
-                ))}
-              </ul>
-            )}
-          </section>
-        </div>
+          )}
+          {!loading && !loadError && posts.length === 0 && (
+            <p className="text-meta text-md-on-surface-variant">
+              {t.noPosts}
+            </p>
+          )}
+          {posts.length > 0 && (
+            <ul className="space-y-3 list-none p-0 m-0">
+              {posts.map((p) => (
+                <Card as="li" key={p.post_id} dense className="space-y-2">
+                  <div className="flex flex-wrap items-center gap-2 text-meta text-md-on-surface-variant">
+                    <Chip asSpan className="h-7 px-2.5">
+                      {
+                        shortName({
+                          name: p.drug_name,
+                          rxcui: p.rxcui ?? "",
+                          ingredientName: p.drug_name,
+                        }).generic
+                      }
+                    </Chip>
+                    <span className="font-medium text-md-on-background">
+                      {p.anon_handle}
+                    </span>
+                    <span aria-hidden="true">·</span>
+                    <time dateTime={p.created_at}>
+                      {relativeTime(p.created_at, lang)}
+                    </time>
+                  </div>
+                  <PlainText as="p" text={p.body} className="text-body" />
+                  {p.side_effect_tags.length > 0 && (
+                    <ul
+                      className="flex flex-wrap gap-2 list-none p-0 m-0"
+                      aria-label={t.tags}
+                    >
+                      {p.side_effect_tags.map((tag) => (
+                        <li key={tag}>
+                          <Chip
+                            asSpan
+                            className="h-7 px-2.5 bg-md-surface-container-low"
+                          >
+                            {TAG_LABEL[lang][tag] ?? tag}
+                          </Chip>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </Card>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
     </Panel>
   );
@@ -666,16 +625,9 @@ function PostForm({
 
   return (
     <form onSubmit={submit} className="space-y-3" aria-labelledby={`${ids}-h`}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 id={`${ids}-h`} className="eyebrow">
-          {t.share}
-        </h3>
-        <MedicinePicker
-          label={t.postMed}
-          value={med}
-          onChange={setMed}
-        />
-      </div>
+      <h3 id={`${ids}-h`} className="eyebrow">
+        {t.share}
+      </h3>
 
       <TextArea
         label={t.whatHappened}
