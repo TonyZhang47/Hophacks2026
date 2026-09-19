@@ -34,6 +34,7 @@ const DoseInput = z.object({
   unitsPerDose: z.number().nullable().catch(null),
   unitLabel: z.enum(["tablet", "capsule", "mL", "puff", "drop", "patch", "unit"]).catch("unit"),
   timesPerDay: z.number().nullable().catch(null),
+  howOftenText: z.string().max(200).catch(""),
   route: z.enum(["oral", "topical", "inhaled", "other"]).catch("other"),
   withFood: z.boolean().nullable().catch(null),
   asNeeded: z.boolean().catch(false),

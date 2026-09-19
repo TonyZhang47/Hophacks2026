@@ -22,7 +22,7 @@ import { env } from "@/lib/env";
 const DEFAULT_VOICE_ID = "EXAVITQu4vr4xnSDxMaL";
 const PRIMARY_MODEL = "eleven_v3";
 const FALLBACK_MODEL = "eleven_flash_v2_5";
-const TIMEOUT_MS = 20_000;
+const TIMEOUT_MS = 45_000;
 
 /**
  * Languages eleven_v3 speaks (ISO 639-1 base codes). v3 auto-detects, so `elevenSupports()`
@@ -109,7 +109,7 @@ export async function elevenTts(text: string, lang: string): Promise<Response> {
     if (e instanceof ElevenTtsError) throw e;
     const name = (e as Error)?.name;
     throw new ElevenTtsError(
-      name === "AbortError" ? "elevenlabs tts: timeout after 20s" : `elevenlabs tts: ${(e as Error)?.message ?? "fetch failed"}`,
+      name === "AbortError" ? "elevenlabs tts: timeout after 45s" : `elevenlabs tts: ${(e as Error)?.message ?? "fetch failed"}`,
     );
   } finally {
     clearTimeout(timer);

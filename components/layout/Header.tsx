@@ -6,36 +6,32 @@ import { LANGS, useLang, type Lang } from "@/components/LanguageContext";
 import { ListenButton } from "@/components/ui/ListenButton";
 
 const NAV = [
-  { href: "/", label: "Meds" },
-  { href: "/community", label: "Community" },
+  { href: "/", label: { en: "Meds", es: "Medicamentos" } },
+  { href: "/community", label: { en: "Community", es: "Comunidad" } },
 ];
 
-/** Reads everything currently on screen (the main region), in document order. */
+function visibleBlockText(el: Element): string {
+  const copy = el.cloneNode(true) as HTMLElement;
+  copy
+    .querySelectorAll("button, select, input, textarea, [aria-hidden='true'], .sr-only, nav")
+    .forEach((n) => n.remove());
+  return copy.innerText?.replace(/\s+/g, " ").trim() || copy.textContent?.replace(/\s+/g, " ").trim() || "";
+}
+
+/** Reads visible page copy (disclaimer + main), skipping controls. */
 function pageText() {
-  const nodes = document.querySelectorAll(
-    "#main h1, #main h2, #main h3, #main p, #main article, #main li, [data-page-disclaimer], [data-page-read]",
-  );
-  return Array.from(nodes)
-    .filter(
-      (el) =>
-        el instanceof HTMLElement &&
-        el.getClientRects().length &&
-        !el.closest(".sr-only, [aria-hidden='true']") &&
-        !Array.from(nodes).some(
-          (parent) => parent !== el && parent.contains(el),
-        ),
-    )
-    .map((el) => {
-      const copy = el.cloneNode(true) as HTMLElement;
-      copy
-        .querySelectorAll(
-          "button, select, input, textarea, [aria-hidden='true'], .sr-only",
-        )
-        .forEach((n) => n.remove());
-      return copy.textContent?.replace(/\s+/g, " ").trim() || "";
-    })
-    .filter(Boolean)
-    .join("\n");
+  const parts: string[] = [];
+  const disclaimer = document.querySelector("[data-page-disclaimer]");
+  if (disclaimer instanceof HTMLElement && disclaimer.getClientRects().length) {
+    const line = visibleBlockText(disclaimer);
+    if (line) parts.push(line);
+  }
+  const main = document.getElementById("main");
+  if (main) {
+    const line = visibleBlockText(main);
+    if (line) parts.push(line);
+  }
+  return parts.join("\n");
 }
 
 export function Header() {
@@ -69,7 +65,7 @@ export function Header() {
                     : "text-md-on-surface-variant hover:bg-md-secondary-container hover:text-md-on-background"
                 }`}
               >
-                {n.label}
+                {n.label[lang]}
               </Link>
             );
           })}
@@ -83,7 +79,7 @@ export function Header() {
             size="sm"
           />
           <label className="sr-only" htmlFor="lang">
-            Language
+            {lang === "es" ? "Idioma" : "Language"}
           </label>
           <select
             id="lang"

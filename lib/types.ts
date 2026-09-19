@@ -78,6 +78,8 @@ export interface DoseInput {
   unitsPerDose: number | null;
   unitLabel: "tablet" | "capsule" | "mL" | "puff" | "drop" | "patch" | "unit";
   timesPerDay: number | null;
+  /** Frequency phrase copied from the bottle, e.g. "6 to 8 times a day". */
+  howOftenText: string;
   route: "oral" | "topical" | "inhaled" | "other";
   withFood: boolean | null;
   asNeeded: boolean;

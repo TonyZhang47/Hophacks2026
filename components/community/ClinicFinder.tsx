@@ -12,22 +12,130 @@ import { StatusPill } from "@/components/ui/SeverityChip";
 import { TextField } from "@/components/ui/TextField";
 import type { ClinicResult, SiteType } from "@/lib/types";
 
+const SITE_WORDS: Record<SiteType, { en: string; es: string }> = {
+  FQHC: { en: "Community health center", es: "Centro de salud comunitario" },
+  LOOKALIKE: { en: "Look-alike health center", es: "Centro de salud tipo FQHC" },
+  RHC: { en: "Rural health clinic", es: "Clínica de salud rural" },
+};
+
 const ZIP_KEY = "rxplain.community.zip";
 const HRSA_FINDER = "https://findahealthcenter.hrsa.gov/";
 
 type Filters = { medicaid: boolean; medicare: boolean; slidingFee: boolean; rural: boolean };
-const FILTERS: { key: keyof Filters; label: string }[] = [
-  { key: "medicaid", label: "Takes Medicaid" },
-  { key: "medicare", label: "Takes Medicare" },
-  { key: "slidingFee", label: "Sliding fee" },
-  { key: "rural", label: "Rural health clinic" },
-];
 
-const SITE_WORDS: Record<SiteType, string> = {
-  FQHC: "Community health center",
-  LOOKALIKE: "Look-alike health center",
-  RHC: "Rural health clinic",
-};
+const T = {
+  en: {
+    title: "Find a clinic",
+    subtitle: "Community health centers and rural health clinics near a ZIP. We only use the ZIP, never your exact spot.",
+    help: "Enter a ZIP code or use your location, then choose filters and press Find clinics.",
+    zip: "ZIP code",
+    locating: "Finding you…",
+    useLocation: "Use my location",
+    filtersLegend: "Only show clinics that…",
+    medicaid: "Takes Medicaid",
+    medicare: "Takes Medicare",
+    slidingFee: "Sliding fee",
+    rural: "Rural health clinic",
+    searching: "Searching…",
+    find: "Find clinics",
+    network: "Something went wrong. Please try again.",
+    unreachable: "We couldn't reach the clinic list. Check your connection and try again.",
+    zipError: "Enter the 5-digit ZIP code.",
+    noGeo: "Your browser can't share a location. Enter a ZIP code instead.",
+    geoFail: "We couldn't get your location. Enter a ZIP code instead.",
+    none: "No clinics within 100 miles.",
+    clinicsWithin: (n: number, miles: number) =>
+      `${n} ${n === 1 ? "clinic" : "clinics"} within ${miles} miles, closest first.`,
+    widened: (miles: number) => ` Widened to ${miles} miles.`,
+    empty:
+      "We couldn't find a listed clinic within 100 miles of that ZIP. Try fewer filters, or search the national directory at",
+    medicaidMedicare: "Takes Medicaid & Medicare",
+    takesMedicaid: "Takes Medicaid",
+    takesMedicare: "Takes Medicare",
+    byProgram: "by program rule",
+    sliding: "Sliding fee",
+    lessMile: "Less than a mile away",
+    milesAway: (n: number) => `${n} miles away`,
+    coverage: "Coverage",
+    call: "Call",
+    listen: (name: string) => `Listen: ${name}`,
+    hide: "Hide",
+    addWhat: "Add what you learned",
+    callConfirm: "Call to confirm.",
+    callConfirmRest: "Program rules say what a clinic must accept; only the clinic can tell you about your plan.",
+    yes: (n: number) => `${n} yes`,
+    no: (n: number) => `${n} no`,
+    iCalled: "I called — they take…",
+    communityReported: "(community reported, anonymous)",
+    insurer: "Insurer",
+    insurerPh: "Insurer, e.g. Blue Cross",
+    yesBtn: "Yes",
+    noBtn: "No",
+    insurerFirst: "Type the insurer's name first (for example, Blue Cross).",
+    saveFail: "We couldn't save that. Please try again.",
+    thanks: "Thanks — added to what people here reported.",
+    saving: "Saving…",
+  },
+  es: {
+    title: "Buscar una clínica",
+    subtitle: "Centros de salud comunitarios y clínicas rurales cerca de un código postal. Solo usamos el ZIP, nunca su ubicación exacta.",
+    help: "Escriba un código postal o use su ubicación, elija filtros y pulse Buscar clínicas.",
+    zip: "Código postal",
+    locating: "Buscándole…",
+    useLocation: "Usar mi ubicación",
+    filtersLegend: "Mostrar solo clínicas que…",
+    medicaid: "Acepta Medicaid",
+    medicare: "Acepta Medicare",
+    slidingFee: "Tarifa según ingresos",
+    rural: "Clínica de salud rural",
+    searching: "Buscando…",
+    find: "Buscar clínicas",
+    network: "Algo salió mal. Inténtelo de nuevo.",
+    unreachable: "No pudimos abrir la lista de clínicas. Revise su conexión e inténtelo de nuevo.",
+    zipError: "Escriba el código postal de 5 dígitos.",
+    noGeo: "Su navegador no puede compartir la ubicación. Escriba un código postal.",
+    geoFail: "No pudimos obtener su ubicación. Escriba un código postal.",
+    none: "No hay clínicas a menos de 100 millas.",
+    clinicsWithin: (n: number, miles: number) =>
+      `${n} ${n === 1 ? "clínica" : "clínicas"} a ${miles} millas, la más cercana primero.`,
+    widened: (miles: number) => ` Se amplió a ${miles} millas.`,
+    empty:
+      "No encontramos una clínica listada a menos de 100 millas de ese código postal. Pruebe con menos filtros o busque en el directorio nacional en",
+    medicaidMedicare: "Acepta Medicaid y Medicare",
+    takesMedicaid: "Acepta Medicaid",
+    takesMedicare: "Acepta Medicare",
+    byProgram: "por regla del programa",
+    sliding: "Tarifa según ingresos",
+    lessMile: "A menos de una milla",
+    milesAway: (n: number) => `A ${n} millas`,
+    coverage: "Cobertura",
+    call: "Llamar",
+    listen: (name: string) => `Escuchar: ${name}`,
+    hide: "Ocultar",
+    addWhat: "Agregar lo que supo",
+    callConfirm: "Llame para confirmar.",
+    callConfirmRest: "Las reglas del programa dicen lo que una clínica debe aceptar; solo la clínica puede hablarle de su plan.",
+    yes: (n: number) => `${n} sí`,
+    no: (n: number) => `${n} no`,
+    iCalled: "Llamé — aceptan…",
+    communityReported: "(reportado por la comunidad, anónimo)",
+    insurer: "Aseguradora",
+    insurerPh: "Aseguradora, ej. Blue Cross",
+    yesBtn: "Sí",
+    noBtn: "No",
+    insurerFirst: "Escriba primero el nombre de la aseguradora (por ejemplo, Blue Cross).",
+    saveFail: "No pudimos guardar eso. Inténtelo de nuevo.",
+    thanks: "Gracias — se agregó a lo que la gente reportó aquí.",
+    saving: "Guardando…",
+  },
+} as const;
+
+const FILTER_KEYS: { key: keyof Filters; label: keyof (typeof T)["en"] }[] = [
+  { key: "medicaid", label: "medicaid" },
+  { key: "medicare", label: "medicare" },
+  { key: "slidingFee", label: "slidingFee" },
+  { key: "rural", label: "rural" },
+];
 
 interface NearResponse {
   results: ClinicResult[];
@@ -62,6 +170,7 @@ function describeForAudio(c: ClinicResult, lang: Lang) {
 
 export function ClinicFinder({ className = "" }: { className?: string }) {
   const { lang } = useLang();
+  const t = T[lang];
   const [zip, setZip] = useState("");
   const [zipError, setZipError] = useState<string | undefined>();
   const [coords, setCoords] = useState<{ lat: number; lon: number } | null>(null);
@@ -88,13 +197,13 @@ export function ClinicFinder({ className = "" }: { className?: string }) {
         params.set("lat", where.lat.toFixed(2));
         params.set("lon", where.lon.toFixed(2));
       }
-      for (const f of FILTERS) if (filters[f.key]) params.set(f.key, "1");
+      for (const f of FILTER_KEYS) if (filters[f.key]) params.set(f.key, "1");
       try {
         const res = await fetch(`/api/clinics/near?${params.toString()}`);
         const body = (await res.json()) as NearResponse & { error?: string };
         if (!res.ok) {
           setStatus("error");
-          setMessage(body.error ?? "Something went wrong. Please try again.");
+          setMessage(body.error ?? t.network);
           setData(null);
           return;
         }
@@ -102,17 +211,17 @@ export function ClinicFinder({ className = "" }: { className?: string }) {
         setStatus("done");
       } catch {
         setStatus("error");
-        setMessage("We couldn't reach the clinic list. Check your connection and try again.");
+        setMessage(t.unreachable);
       }
     },
-    [filters],
+    [filters, t],
   );
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
     const z = zip.replace(/\D/g, "").slice(0, 5);
     if (z.length !== 5) {
-      setZipError("Enter the 5-digit ZIP code.");
+      setZipError(t.zipError);
       return;
     }
     setZipError(undefined);
@@ -126,7 +235,7 @@ export function ClinicFinder({ className = "" }: { className?: string }) {
   const useMyLocation = () => {
     if (!("geolocation" in navigator)) {
       setStatus("error");
-      setMessage("Your browser can't share a location. Enter a ZIP code instead.");
+      setMessage(t.noGeo);
       return;
     }
     setStatus("locating");
@@ -141,7 +250,7 @@ export function ClinicFinder({ className = "" }: { className?: string }) {
       },
       () => {
         setStatus("error");
-        setMessage("We couldn't get your location. Enter a ZIP code instead.");
+        setMessage(t.geoFail);
       },
       { enableHighAccuracy: false, timeout: 10_000, maximumAge: 600_000 },
     );
@@ -155,20 +264,16 @@ export function ClinicFinder({ className = "" }: { className?: string }) {
   const results = data?.results ?? [];
 
   return (
-    <Panel className={className} aria-label="Find a clinic">
-      <PanelHeader
-        icon={MapPin}
-        title="Find a clinic"
-        subtitle="Community health centers and rural health clinics near a ZIP. We only use the ZIP, never your exact spot."
-      />
+    <Panel className={className} aria-label={t.title}>
+      <PanelHeader icon={MapPin} title={t.title} subtitle={t.subtitle} />
 
       <form onSubmit={onSubmit} className="space-y-3" aria-describedby={`${ids}-help`}>
         <p id={`${ids}-help`} className="sr-only">
-          Enter a ZIP code or use your location, then choose filters and press Find clinics.
+          {t.help}
         </p>
         <div className="flex flex-col sm:flex-row sm:items-end gap-2">
           <TextField
-            label="ZIP code"
+            label={t.zip}
             inputMode="numeric"
             autoComplete="postal-code"
             pattern="[0-9]{5}"
@@ -187,22 +292,22 @@ export function ClinicFinder({ className = "" }: { className?: string }) {
             className={`h-11 ${zipError ? "sm:mb-7" : ""}`}
           >
             <LocateFixed className="h-4 w-4" aria-hidden="true" />
-            {status === "locating" ? "Finding you…" : "Use my location"}
+            {status === "locating" ? t.locating : t.useLocation}
           </Button>
         </div>
         <fieldset>
-          <legend className="sr-only">Only show clinics that…</legend>
+          <legend className="sr-only">{t.filtersLegend}</legend>
           <div className="flex flex-wrap gap-2">
-            {FILTERS.map((f) => (
+            {FILTER_KEYS.map((f) => (
               <Chip key={f.key} selected={filters[f.key]} onClick={() => setFilters((s) => ({ ...s, [f.key]: !s[f.key] }))}>
-                {f.label}
+                {t[f.label]}
               </Chip>
             ))}
           </div>
         </fieldset>
         <Button type="submit" disabled={status === "loading"}>
           <Search className="h-4 w-4" aria-hidden="true" />
-          {status === "loading" ? "Searching…" : "Find clinics"}
+          {status === "loading" ? t.searching : t.find}
         </Button>
       </form>
 
@@ -215,15 +320,13 @@ export function ClinicFinder({ className = "" }: { className?: string }) {
         {status === "done" && data && (
           <>
             <p className="text-meta text-md-on-surface-variant">
-              {results.length === 0
-                ? "No clinics within 100 miles."
-                : `${results.length} ${results.length === 1 ? "clinic" : "clinics"} within ${data.radiusUsed} miles, closest first.`}
-              {data.widened && results.length > 0 && <> Widened to {data.radiusUsed} miles.</>}
+              {results.length === 0 ? t.none : t.clinicsWithin(results.length, data.radiusUsed)}
+              {data.widened && results.length > 0 && t.widened(data.radiusUsed)}
             </p>
             {results.length === 0 ? (
               <Card dense>
                 <p className="text-body">
-                  We couldn&rsquo;t find a listed clinic within 100 miles of that ZIP. Try fewer filters, or search the national directory at{" "}
+                  {t.empty}{" "}
                   <a href={HRSA_FINDER} target="_blank" rel="noreferrer" className="text-md-tertiary underline underline-offset-4">
                     findahealthcenter.hrsa.gov
                   </a>
@@ -245,24 +348,25 @@ export function ClinicFinder({ className = "" }: { className?: string }) {
 }
 
 function ClinicRow({ clinic: c, lang, onConfirmed }: { clinic: ClinicResult; lang: Lang; onConfirmed: () => void }) {
+  const t = T[lang];
   const [open, setOpen] = useState(false);
   const ids = useId();
   const address = [c.address, [c.city, c.state].filter(Boolean).join(", "), c.zip].filter(Boolean).join(" · ");
   const coverageWords =
     c.accepts_medicaid && c.accepts_medicare
-      ? "Takes Medicaid & Medicare"
+      ? t.medicaidMedicare
       : c.accepts_medicaid
-        ? "Takes Medicaid"
+        ? t.takesMedicaid
         : c.accepts_medicare
-          ? "Takes Medicare"
+          ? t.takesMedicare
           : null;
-  const distance = c.distanceMiles < 1 ? "Less than a mile away" : `${c.distanceMiles} miles away`;
+  const distance = c.distanceMiles < 1 ? t.lessMile : t.milesAway(c.distanceMiles);
 
   return (
     <Card as="li" dense className="space-y-2.5">
       <div className="min-w-0">
         <h3 className="text-title break-words leading-snug">{c.name}</h3>
-        <p className="text-meta text-md-on-surface-variant">{SITE_WORDS[c.site_type]}</p>
+        <p className="text-meta text-md-on-surface-variant">{SITE_WORDS[c.site_type][lang]}</p>
       </div>
 
       <p className="text-meta">
@@ -270,12 +374,21 @@ function ClinicRow({ clinic: c, lang, onConfirmed }: { clinic: ClinicResult; lan
         <span className="text-md-on-surface-variant"> · {address}</span>
       </p>
 
-      <div className="flex flex-wrap gap-2" aria-label="Coverage">
-        {coverageWords && <StatusPill tone="info">{coverageWords} · by program rule</StatusPill>}
-        {c.sliding_fee && <StatusPill tone="success">Sliding fee · by program rule</StatusPill>}
+      <div className="flex flex-wrap gap-2" aria-label={t.coverage}>
+        {coverageWords && (
+          <StatusPill tone="info">
+            {coverageWords} · {t.byProgram}
+          </StatusPill>
+        )}
+        {c.sliding_fee && (
+          <StatusPill tone="success">
+            {t.sliding} · {t.byProgram}
+          </StatusPill>
+        )}
         {c.communityConfirmed.map((s) => (
           <StatusPill key={s.insurer} tone="neutral">
-            {s.insurer} · {s.yes} yes{s.no ? `, ${s.no} no` : ""}
+            {s.insurer} · {t.yes(s.yes)}
+            {s.no ? `, ${t.no(s.no)}` : ""}
           </StatusPill>
         ))}
       </div>
@@ -287,10 +400,12 @@ function ClinicRow({ clinic: c, lang, onConfirmed }: { clinic: ClinicResult; lan
             className="inline-flex items-center gap-2 h-9 px-3.5 rounded-full bg-md-secondary-container text-md-on-secondary-container border border-md-outline text-meta font-medium transition-all duration-200 ease-md hover:bg-md-outline/60 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-md-primary focus-visible:ring-offset-2"
           >
             <Phone className="h-4 w-4" aria-hidden="true" />
-            <span>Call {c.phone}</span>
+            <span>
+              {t.call} {c.phone}
+            </span>
           </a>
         )}
-        <ListenButton text={describeForAudio(c, lang)} label={`Listen: ${c.name}`} iconOnly size="sm" variant="outlined" />
+        <ListenButton text={describeForAudio(c, lang)} label={t.listen(c.name)} iconOnly size="sm" variant="outlined" />
         <Button
           type="button"
           variant="text"
@@ -300,23 +415,23 @@ function ClinicRow({ clinic: c, lang, onConfirmed }: { clinic: ClinicResult; lan
           aria-controls={`${ids}-confirm`}
           className="ml-auto"
         >
-          {open ? "Hide" : "Add what you learned"}
+          {open ? t.hide : t.addWhat}
         </Button>
       </div>
 
       <p className="text-meta text-md-on-surface-variant">
-        <span className="font-medium text-md-on-background">Call to confirm.</span> Program rules say what a clinic must accept; only the clinic can tell
-        you about your plan.
+        <span className="font-medium text-md-on-background">{t.callConfirm}</span> {t.callConfirmRest}
       </p>
 
       <div id={`${ids}-confirm`} hidden={!open}>
-        {open && <ConfirmForm clinicId={c.clinic_id} onDone={onConfirmed} />}
+        {open && <ConfirmForm clinicId={c.clinic_id} lang={lang} onDone={onConfirmed} />}
       </div>
     </Card>
   );
 }
 
-function ConfirmForm({ clinicId, onDone }: { clinicId: string; onDone: () => void }) {
+function ConfirmForm({ clinicId, lang, onDone }: { clinicId: string; lang: Lang; onDone: () => void }) {
+  const t = T[lang];
   const [insurer, setInsurer] = useState("");
   const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [err, setErr] = useState<string>("");
@@ -325,7 +440,7 @@ function ConfirmForm({ clinicId, onDone }: { clinicId: string; onDone: () => voi
   const send = async (confirmed: boolean) => {
     const label = insurer.trim();
     if (label.length < 2) {
-      setErr("Type the insurer's name first (for example, Blue Cross).");
+      setErr(t.insurerFirst);
       return;
     }
     setErr("");
@@ -338,7 +453,7 @@ function ConfirmForm({ clinicId, onDone }: { clinicId: string; onDone: () => voi
       });
       if (!res.ok) {
         const body = (await res.json().catch(() => ({}))) as { error?: string };
-        setErr(body.error ?? "We couldn't save that. Please try again.");
+        setErr(body.error ?? t.saveFail);
         setState("error");
         return;
       }
@@ -346,7 +461,7 @@ function ConfirmForm({ clinicId, onDone }: { clinicId: string; onDone: () => voi
       setInsurer("");
       onDone();
     } catch {
-      setErr("We couldn't save that. Please try again.");
+      setErr(t.saveFail);
       setState("error");
     }
   };
@@ -354,13 +469,13 @@ function ConfirmForm({ clinicId, onDone }: { clinicId: string; onDone: () => voi
   return (
     <div className="rounded-xl bg-md-surface-container-low p-3 space-y-2">
       <p id={`${id}-label`} className="text-meta font-medium text-md-on-surface-variant">
-        I called — they take… <span className="font-normal">(community reported, anonymous)</span>
+        {t.iCalled} <span className="font-normal">{t.communityReported}</span>
       </p>
       <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
         <TextField
-          label="Insurer"
+          label={t.insurer}
           hideLabel
-          placeholder="Insurer, e.g. Blue Cross"
+          placeholder={t.insurerPh}
           value={insurer}
           maxLength={40}
           onChange={(e) => setInsurer(e.target.value)}
@@ -369,15 +484,15 @@ function ConfirmForm({ clinicId, onDone }: { clinicId: string; onDone: () => voi
         />
         <div className="flex gap-2">
           <Button type="button" variant="tonal" className="h-11" onClick={() => send(true)} disabled={state === "sending"}>
-            Yes
+            {t.yesBtn}
           </Button>
           <Button type="button" variant="outlined" className="h-11" onClick={() => send(false)} disabled={state === "sending"}>
-            No
+            {t.noBtn}
           </Button>
         </div>
       </div>
       <p role="status" className={`text-meta ${err ? "text-md-error" : "text-md-on-surface-variant"}`}>
-        {err ? err : state === "sent" ? "Thanks — added to what people here reported." : state === "sending" ? "Saving…" : ""}
+        {err ? err : state === "sent" ? t.thanks : state === "sending" ? t.saving : ""}
       </p>
     </div>
   );

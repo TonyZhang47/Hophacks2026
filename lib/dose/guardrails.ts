@@ -214,7 +214,8 @@ export function g3NumericGrounding(
     };
   }
 
-  const inputHadNumbers = input.unitsPerDose != null || input.timesPerDay != null;
+  const inputHadNumbers =
+    input.unitsPerDose != null || input.timesPerDay != null || /\d/.test(input.howOftenText ?? "");
   if (inputHadNumbers && extractNumbers(result.plainDose).length === 0) {
     return {
       ok: false,

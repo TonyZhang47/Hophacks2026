@@ -66,6 +66,9 @@ const T = {
     whereFrom: "Where this came from",
     meta: (ceiling: boolean) => `Checked against the label · ceiling check: ${ceiling ? "yes" : "not available"}`,
     evidence: "From the official label",
+    noLabel: "We could not find official label text for this medicine.",
+    noLabelHelp:
+      "Official label text is the FDA-approved drug label — the same source pharmacists use. We look it up by this medicine's name. If nothing is on file, we cannot check your directions against that source. That can happen with a store-brand or combination product we cannot match, a supplement, a compounded medicine, or a name we do not recognize. Follow what your own bottle says, and ask a pharmacist to confirm.",
     disclaimer: "Educational only. Talk with a pharmacist or doctor before changing how you take any medicine.",
     networkError: "Something went wrong. Please try again.",
     startOver: "Start over",
@@ -108,6 +111,9 @@ const T = {
     whereFrom: "De dónde viene esto",
     meta: (ceiling: boolean) => `Comparado con la etiqueta · verificación de máximo: ${ceiling ? "sí" : "no disponible"}`,
     evidence: "De la etiqueta oficial",
+    noLabel: "No encontramos el texto oficial de la etiqueta de este medicamento.",
+    noLabelHelp:
+      "El texto oficial de la etiqueta es la ficha aprobada por la FDA, la misma fuente que usan los farmacéuticos. La buscamos por el nombre de este medicamento. Si no hay nada registrado, no podemos comparar sus indicaciones con esa fuente. Puede pasar con una marca de tienda o un producto combinado que no reconocemos, un suplemento, un medicamento compuesto o un nombre que no identificamos. Siga lo que dice su propio frasco y pida a un farmacéutico que lo confirme.",
     disclaimer: "Solo con fines educativos. Hable con un farmacéutico o médico antes de cambiar cómo toma cualquier medicamento.",
     networkError: "Algo salió mal. Inténtelo de nuevo.",
     startOver: "Empezar de nuevo",
@@ -153,15 +159,38 @@ function matchMed(meds: Med[], drugName: string): Med | null {
   );
 }
 
-/** Only validated strings reach the speaker. */
-function speechFor(result: DoseResult | null, t: (typeof T)["en"] | (typeof T)["es"]): string {
-  if (!result) return "";
-  if (result.status === "consistent") {
-    return [result.plainDose, result.maxPerDayLine, result.timing.join(", "), result.missedDoseLine, result.askYourPharmacist]
-      .filter(Boolean)
-      .join(" ");
+function howOftenDisplay(input: DoseInput, t: (typeof T)["en"] | (typeof T)["es"]): string {
+  if (input.howOftenText) return input.howOftenText;
+  if (input.timesPerDay != null) return t.timesADay(input.timesPerDay);
+  return t.notSaid;
+}
+
+/** Only validated strings reach the speaker. The header Listen button reads this for the whole box. */
+function speechFor(
+  result: DoseResult | null,
+  input: DoseInput | null,
+  t: (typeof T)["en"] | (typeof T)["es"],
+): string {
+  if (result) {
+    if (result.status === "consistent") {
+      return [result.plainDose, result.maxPerDayLine, result.timing.join(", "), result.missedDoseLine, result.askYourPharmacist]
+        .filter(Boolean)
+        .join(" ");
+    }
+    const reason = noDigits(result.reason ?? "", "reason");
+    const ask = noDigits(result.askYourPharmacist ?? "", "askYourPharmacist");
+    const help = reason === t.noLabel ? t.noLabelHelp : "";
+    return [t.speakIntro, reason, help, ask].filter(Boolean).join(" ");
   }
-  return t.speakIntro + noDigits(result.reason ?? "", "reason") + " " + noDigits(result.askYourPharmacist ?? "", "askYourPharmacist");
+  if (input) {
+    return [
+      t.isThisRight,
+      `${t.medicine}: ${input.drugName || t.notNamed}.`,
+      `${t.howOften}: ${howOftenDisplay(input, t)}.`,
+      `${t.youWrote}: ${input.userText}`,
+    ].join(" ");
+  }
+  return `${t.heading}. ${t.intro}`;
 }
 
 export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
@@ -261,7 +290,7 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
   }
 
   const busy = phase === "parsing" || phase === "checking";
-  const speech = speechFor(phase === "done" ? result : null, t);
+  const speech = speechFor(phase === "done" ? result : null, phase === "confirm" || phase === "checking" ? input : null, t);
 
   // Confirmation: show the common name ("Metformin (also sold as Glucophage)").
   const confirmMedName = input
@@ -278,7 +307,7 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
         icon={Clock}
         title={t.heading}
         subtitle={t.intro}
-        actions={<ListenButton size="sm" variant="outlined" label={t.listen} text={speech} getText={() => speech} />}
+        actions={<ListenButton size="sm" variant="outlined" label={t.listen} text={speech} getText={() => speechFor(phase === "done" ? result : null, phase === "confirm" || phase === "checking" ? input : null, t)} />}
       />
 
       <div className="space-y-4">
@@ -363,7 +392,7 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
                     : t.notSaid
                 }
               />
-              <KeyValue k={t.howOften} v={input.timesPerDay != null ? t.timesADay(input.timesPerDay) : t.notSaid} />
+              <KeyValue k={t.howOften} v={howOftenDisplay(input, t)} />
               <KeyValue k={t.withFood} v={input.withFood == null ? t.notSaid : input.withFood ? t.yes : t.no} />
               <KeyValue k={t.asNeeded} v={input.asNeeded ? t.yes : t.no} />
             </div>
@@ -391,7 +420,7 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
         <div aria-live="polite" aria-atomic="true" className="space-y-3">
           {phase === "done" && result && (
             <>
-              {result.status === "consistent" ? <ConsistentWell result={result} lang={lang} speech={speech} /> : <FailClosedWell result={result} lang={lang} speech={speech} />}
+              {result.status === "consistent" ? <ConsistentWell result={result} lang={lang} /> : <FailClosedWell result={result} lang={lang} />}
               <Button variant="text" size="sm" onClick={reset}>
                 {t.startOver}
               </Button>
@@ -408,7 +437,7 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
   );
 }
 
-function ConsistentWell({ result, lang, speech }: { result: DoseResult; lang: "en" | "es"; speech: string }) {
+function ConsistentWell({ result, lang }: { result: DoseResult; lang: "en" | "es" }) {
   const t = T[lang];
   return (
     <article className="bg-md-surface-container-low rounded-xl p-4 space-y-4" aria-label={t.yourDirections}>
@@ -428,7 +457,6 @@ function ConsistentWell({ result, lang, speech }: { result: DoseResult; lang: "e
         </div>
       )}
       {result.missedDoseLine && <PlainText as="p" className="text-body" text={result.missedDoseLine} />}
-      <ListenButton size="md" text={speech} label={t.listen} />
       {result.askYourPharmacist && (
         <div className="rounded-lg bg-md-surface-container border border-md-outline px-4 py-3">
           <p className="eyebrow mb-1">{t.askTitle}</p>
@@ -445,10 +473,11 @@ function ConsistentWell({ result, lang, speech }: { result: DoseResult; lang: "e
  * Fail-closed well. Deliberately renders nothing from the input and no dose line:
  * only the reason (digit-free), a question, and the label text as evidence.
  */
-function FailClosedWell({ result, lang, speech }: { result: DoseResult; lang: "en" | "es"; speech: string }) {
+function FailClosedWell({ result, lang }: { result: DoseResult; lang: "en" | "es" }) {
   const t = T[lang];
   const reason = noDigits(result.reason ?? "", "reason");
   const ask = noDigits(result.askYourPharmacist ?? "", "askYourPharmacist");
+  const noLabel = reason === t.noLabel;
   return (
     <article className="bg-md-surface-container-low rounded-xl p-4 space-y-4" aria-label={t.checkWithPharmacist}>
       <StatusPill tone="error">
@@ -456,7 +485,7 @@ function FailClosedWell({ result, lang, speech }: { result: DoseResult; lang: "e
         {t.checkWithPharmacist}
       </StatusPill>
       {reason && <p className="text-title">{reason}</p>}
-      <ListenButton size="md" text={speech} label={t.listen} />
+      {noLabel && <p className="text-body text-md-on-surface-variant">{t.noLabelHelp}</p>}
       {ask && (
         <div className="rounded-lg bg-md-surface-container border border-md-outline px-4 py-3">
           <p className="eyebrow mb-1">{t.askTitle}</p>

@@ -37,9 +37,26 @@ export function ListenButton({
       ownStop.current?.();
       return;
     }
-    const raw = (getText ? getText() : text) || "";
-    const spoken = plain && lang === "en" ? plainifyForSpeech(raw) : raw;
-    if (!spoken.trim()) return;
+    let raw = "";
+    try {
+      raw = (getText ? getText() : text) || "";
+    } catch (e) {
+      console.error("[listen] getText failed", e);
+      setError(
+        es
+          ? "No se pudo leer esta página. Inténtelo de nuevo."
+          : "This page could not be read. Please try again.",
+      );
+      return;
+    }
+    if (!raw.trim()) {
+      setError(
+        es
+          ? "No hay texto visible para leer en esta página."
+          : "There is no visible text on this page to read.",
+      );
+      return;
+    }
     stopCurrent?.();
     setError("");
     setState("loading");
@@ -58,13 +75,16 @@ export function ListenButton({
     ownStop.current = stop;
     stopCurrent = stop;
     try {
-      for (const chunk of speechChunks(spoken)) {
+      // Short chunks so the first audio starts before Grok's request timeout.
+      for (const chunk of speechChunks(raw, 400)) {
+        const spoken = plain && lang === "en" ? plainifyForSpeech(chunk) : chunk;
+        if (!spoken.trim()) continue;
         if (ctrl.signal.aborted) break;
         setState("loading");
         const res = await fetch("/api/tts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: chunk, lang }),
+          body: JSON.stringify({ text: spoken, lang }),
           signal: ctrl.signal,
         });
         if (!res.ok) throw new Error(String(res.status));

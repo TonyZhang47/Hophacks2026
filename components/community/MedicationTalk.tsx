@@ -9,6 +9,7 @@ import {
   type FormEvent,
 } from "react";
 import { MedicinePicker } from "@/components/community/MedicinePicker";
+import { useLang, type Lang } from "@/components/LanguageContext";
 import { MessageSquare, Send } from "lucide-react";
 import commonMeds from "@/data/common_meds.json";
 import { Button } from "@/components/ui/Button";
@@ -17,7 +18,7 @@ import { Chip } from "@/components/ui/Chip";
 import { ListenButton } from "@/components/ui/ListenButton";
 import { Panel, PanelHeader } from "@/components/ui/Panel";
 import { PlainText } from "@/components/ui/PlainText";
-import { Select, TextArea } from "@/components/ui/TextField";
+import { TextArea } from "@/components/ui/TextField";
 import { shortName } from "@/lib/plainNames";
 import {
   SIDE_EFFECT_TAGS,
@@ -146,9 +147,21 @@ function useAnonHandle(): string {
   return handle;
 }
 
-function relativeTime(iso: string): string {
+function relativeTime(iso: string, lang: Lang): string {
   const ms = Date.now() - new Date(iso).getTime();
   const min = Math.round(ms / 60_000);
+  if (lang === "es") {
+    if (min < 1) return "ahora mismo";
+    if (min < 60) return `hace ${min} ${min === 1 ? "minuto" : "minutos"}`;
+    const h = Math.round(min / 60);
+    if (h < 24) return `hace ${h} ${h === 1 ? "hora" : "horas"}`;
+    const d = Math.round(h / 24);
+    if (d < 7) return `hace ${d} ${d === 1 ? "día" : "días"}`;
+    const w = Math.round(d / 7);
+    if (w < 9) return `hace ${w} ${w === 1 ? "semana" : "semanas"}`;
+    const mo = Math.round(d / 30);
+    return `hace ${mo} ${mo === 1 ? "mes" : "meses"}`;
+  }
   if (min < 1) return "just now";
   if (min < 60) return `${min} ${min === 1 ? "minute" : "minutes"} ago`;
   const h = Math.round(min / 60);
@@ -161,18 +174,139 @@ function relativeTime(iso: string): string {
   return `${mo} ${mo === 1 ? "month" : "months"} ago`;
 }
 
-const TAG_LABEL: Record<SideEffectTag, string> = {
-  nausea: "Nausea",
-  dizziness: "Dizziness",
-  sleep: "Sleep",
-  appetite: "Appetite",
-  headache: "Headache",
-  stomach: "Stomach",
-  mood: "Mood",
-  other: "Other",
+const TAG_LABEL: Record<Lang, Record<SideEffectTag, string>> = {
+  en: {
+    nausea: "Nausea",
+    dizziness: "Dizziness",
+    sleep: "Sleep",
+    appetite: "Appetite",
+    headache: "Headache",
+    stomach: "Stomach",
+    mood: "Mood",
+    other: "Other",
+  },
+  es: {
+    nausea: "Náuseas",
+    dizziness: "Mareo",
+    sleep: "Sueño",
+    appetite: "Apetito",
+    headache: "Dolor de cabeza",
+    stomach: "Estómago",
+    mood: "Ánimo",
+    other: "Otro",
+  },
 };
 
+const T = {
+  en: {
+    title: "Medication talk",
+    subtitle: "What people say about their own side effects. Experiences, not advice.",
+    listen: "Listen",
+    selectedMed: "Selected medicine",
+    topTerms: (name: string) => `Top terms for ${name}`,
+    allMeds: "your selected medicine",
+    loading: "Loading…",
+    noTerms: "No community terms for this medicine yet. Choose another medicine or share your experience.",
+    termsAria: "Most mentioned terms. Choose one to filter posts.",
+    mentioned: (n: number) => `mentioned in ${n} ${n === 1 ? "post" : "posts"}`,
+    selected: ", selected",
+    showing: (term: string) => `Showing posts that mention “${term}”.`,
+    showAll: "Show all",
+    fromLabel: "From the label",
+    listenLabel: "Listen: from the label",
+    officialFor: (name: string) => `From the official label for ${name}:`,
+    thisMed: "this medicine",
+    noLabelYet: "No label text on file for this medicine yet.",
+    pickMed: "Pick a medicine to see what its official label lists as common side effects.",
+    source: "Source: openFDA drug label, adverse reactions section.",
+    ifWorries: "If a side effect worries you, call your pharmacist or clinic.",
+    report: "Report a side effect to FDA MedWatch",
+    whatPeople: "What people say",
+    loadError: "We couldn't load posts right now. Please try again in a moment.",
+    noPosts: "No posts here yet. Be the first to share how it went for you.",
+    tags: "Tags",
+    share: "Share how it went for you",
+    postMed: "Medicine for your post",
+    whatHappened: "What happened for you?",
+    placeholder:
+      "What happened for you? e.g. Nausea the first two weeks, then it settled once I took it with dinner.",
+    hint: (n: number) => `${n} left. Your own experience only — no dose advice, no names, no contact details.`,
+    tagsLegend: "Tags (optional)",
+    postingAs: "Posting as",
+    about: "about",
+    thanks: "Thanks — your post is up.",
+    sharing: "Sharing…",
+    shareBtn: "Share",
+    pickMedErr: "Pick the medicine you're talking about.",
+    sayMore: "Say a little more — at least 10 characters.",
+    postFail: "We couldn't post that. Please try again.",
+    postNet: "We couldn't post that. Check your connection and try again.",
+    topTermsListen: (scope: string, line: string) => `Top terms ${scope}: ${line}.`,
+    noPostsListen: (scope: string) => `No posts yet ${scope}.`,
+    forMed: (name: string) => `for ${name}`,
+    forAll: "for all medicines",
+    postN: (i: number, drug: string, when: string, body: string) =>
+      `Post ${i}, about ${drug}, ${when}: ${body}`,
+    notAdvice: "These are other people's experiences, not medical advice.",
+    panel: "Medication talk",
+  },
+  es: {
+    title: "Conversación sobre medicamentos",
+    subtitle: "Lo que las personas dicen de sus propios efectos secundarios. Experiencias, no consejos.",
+    listen: "Escuchar",
+    selectedMed: "Medicamento seleccionado",
+    topTerms: (name: string) => `Términos más mencionados para ${name}`,
+    allMeds: "el medicamento seleccionado",
+    loading: "Cargando…",
+    noTerms: "Aún no hay términos de la comunidad para este medicamento. Elija otro o comparta su experiencia.",
+    termsAria: "Términos más mencionados. Elija uno para filtrar las publicaciones.",
+    mentioned: (n: number) => `mencionado en ${n} ${n === 1 ? "publicación" : "publicaciones"}`,
+    selected: ", seleccionado",
+    showing: (term: string) => `Mostrando publicaciones que mencionan “${term}”.`,
+    showAll: "Mostrar todas",
+    fromLabel: "De la etiqueta",
+    listenLabel: "Escuchar: de la etiqueta",
+    officialFor: (name: string) => `De la etiqueta oficial de ${name}:`,
+    thisMed: "este medicamento",
+    noLabelYet: "Aún no hay texto de etiqueta registrado para este medicamento.",
+    pickMed: "Elija un medicamento para ver los efectos secundarios comunes de su etiqueta oficial.",
+    source: "Fuente: etiqueta de medicamentos de openFDA, sección de reacciones adversas.",
+    ifWorries: "Si un efecto secundario le preocupa, llame a su farmacéutico o clínica.",
+    report: "Informar un efecto secundario a FDA MedWatch",
+    whatPeople: "Lo que dice la gente",
+    loadError: "No pudimos cargar las publicaciones ahora. Inténtelo de nuevo en un momento.",
+    noPosts: "Aún no hay publicaciones. Sea la primera persona en contar cómo le fue.",
+    tags: "Etiquetas",
+    share: "Cuente cómo le fue",
+    postMed: "Medicamento de su publicación",
+    whatHappened: "¿Qué le pasó a usted?",
+    placeholder:
+      "¿Qué le pasó? ej. Náuseas las primeras dos semanas; luego se calmaron cuando lo tomé con la cena.",
+    hint: (n: number) => `${n} restantes. Solo su experiencia — sin consejos de dosis, sin nombres, sin datos de contacto.`,
+    tagsLegend: "Etiquetas (opcional)",
+    postingAs: "Publicando como",
+    about: "sobre",
+    thanks: "Gracias — su publicación ya está visible.",
+    sharing: "Compartiendo…",
+    shareBtn: "Compartir",
+    pickMedErr: "Elija el medicamento del que habla.",
+    sayMore: "Cuente un poco más — al menos 10 caracteres.",
+    postFail: "No pudimos publicar eso. Inténtelo de nuevo.",
+    postNet: "No pudimos publicar eso. Revise su conexión e inténtelo de nuevo.",
+    topTermsListen: (scope: string, line: string) => `Términos más mencionados ${scope}: ${line}.`,
+    noPostsListen: (scope: string) => `Aún no hay publicaciones ${scope}.`,
+    forMed: (name: string) => `para ${name}`,
+    forAll: "para todos los medicamentos",
+    postN: (i: number, drug: string, when: string, body: string) =>
+      `Publicación ${i}, sobre ${drug}, ${when}: ${body}`,
+    notAdvice: "Estas son experiencias de otras personas, no consejos médicos.",
+    panel: "Conversación sobre medicamentos",
+  },
+} as const;
+
 export function MedicationTalk({ className = "" }: { className?: string }) {
+  const { lang } = useLang();
+  const t = T[lang];
   const handle = useAnonHandle();
   const [selectedMed, setSelectedMed] = useState<Med | null>(findMed("6809"));
   const [term, setTerm] = useState<string | null>(null);
@@ -225,13 +359,11 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
       setPosts(p.posts);
     } catch {
       if (version !== requestVersion.current) return;
-      setLoadError(
-        "We couldn't load posts right now. Please try again in a moment.",
-      );
+      setLoadError(t.loadError);
     } finally {
       if (version === requestVersion.current) setLoading(false);
     }
-  }, [selectedMed, term]);
+  }, [selectedMed, term, t.loadError]);
 
   useEffect(() => {
     void load();
@@ -243,38 +375,39 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
   const selectedGeneric = selectedMed ? shortName(selectedMed).generic : null;
 
   const listenText = () => {
-    const scope = selectedGeneric
-      ? `for ${selectedGeneric}`
-      : "for all medicines";
+    const scope = selectedGeneric ? t.forMed(selectedGeneric) : t.forAll;
     const termLine = terms.length
-      ? `Top terms ${scope}: ${terms
-          .slice(0, 8)
-          .map((t) => `${t.term}, ${t.count}`)
-          .join("; ")}.`
-      : `No posts yet ${scope}.`;
+      ? t.topTermsListen(
+          scope,
+          terms
+            .slice(0, 8)
+            .map((x) => `${x.term}, ${x.count}`)
+            .join("; "),
+        )
+      : t.noPostsListen(scope);
     const postLines = posts
       .slice(0, 3)
-      .map(
-        (p, i) =>
-          `Post ${i + 1}, about ${shortName({ name: p.drug_name, rxcui: p.rxcui ?? "", ingredientName: p.drug_name }).generic}, ${relativeTime(p.created_at)}: ${p.body}`,
+      .map((p, i) =>
+        t.postN(
+          i + 1,
+          shortName({ name: p.drug_name, rxcui: p.rxcui ?? "", ingredientName: p.drug_name }).generic,
+          relativeTime(p.created_at, lang),
+          p.body,
+        ),
       );
-    return [
-      termLine,
-      ...postLines,
-      "These are other people's experiences, not medical advice.",
-    ].join(" ");
+    return [termLine, ...postLines, t.notAdvice].join(" ");
   };
 
   return (
-    <Panel className={className} aria-label="Medication talk">
+    <Panel className={className} aria-label={t.panel}>
       <PanelHeader
         icon={MessageSquare}
-        title="Medication talk"
-        subtitle="What people say about their own side effects. Experiences, not advice."
+        title={t.title}
+        subtitle={t.subtitle}
         actions={
           <>
             <MedicinePicker
-              label="Selected medicine"
+              label={t.selectedMed}
               value={selectedMed}
               onChange={(m) => {
                 setSelectedMed(m);
@@ -286,7 +419,7 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
               text=""
               size="sm"
               variant="outlined"
-              label="Listen"
+              label={t.listen}
             />
           </>
         }
@@ -297,37 +430,35 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
         <div className="lg:col-span-2 space-y-5 min-w-0">
           <section aria-labelledby={`${ids}-terms-h`} className="space-y-2">
             <h3 id={`${ids}-terms-h`} className="eyebrow">
-              Top terms for {selectedGeneric || "your selected medicine"}
+              {t.topTerms(selectedGeneric || t.allMeds)}
             </h3>
             {terms.length === 0 ? (
               <p className="text-meta text-md-on-surface-variant">
-                {loading
-                  ? "Loading…"
-                  : "No community terms for this medicine yet. Choose another medicine or share your experience."}
+                {loading ? t.loading : t.noTerms}
               </p>
             ) : (
               <ul
                 className="flex flex-wrap gap-2 list-none p-0 m-0"
-                aria-label="Most mentioned terms. Choose one to filter posts."
+                aria-label={t.termsAria}
               >
-                {terms.map((t) => (
-                  <li key={t.term}>
+                {terms.map((item) => (
+                  <li key={item.term}>
                     <Chip
-                      selected={term === t.term}
+                      selected={term === item.term}
                       onClick={() =>
-                        setTerm((cur) => (cur === t.term ? null : t.term))
+                        setTerm((cur) => (cur === item.term ? null : item.term))
                       }
-                      aria-label={`${t.term}, mentioned in ${t.count} ${t.count === 1 ? "post" : "posts"}${term === t.term ? ", selected" : ""}`}
+                      aria-label={`${item.term}, ${t.mentioned(item.count)}${term === item.term ? t.selected : ""}`}
                     >
-                      {t.term}
+                      {item.term}
                       <span
                         className={
-                          term === t.term
+                          term === item.term
                             ? "text-md-on-primary/70"
                             : "text-md-on-surface-variant"
                         }
                       >
-                        · {t.count}
+                        · {item.count}
                       </span>
                     </Chip>
                   </li>
@@ -336,13 +467,13 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
             )}
             {term && (
               <p className="text-meta text-md-on-surface-variant">
-                Showing posts that mention &ldquo;{term}&rdquo;.{" "}
+                {t.showing(term)}{" "}
                 <button
                   type="button"
                   onClick={() => setTerm(null)}
                   className="text-md-tertiary underline underline-offset-4 rounded"
                 >
-                  Show all
+                  {t.showAll}
                 </button>
               </p>
             )}
@@ -354,12 +485,12 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
           >
             <div className="flex items-center justify-between gap-2">
               <h3 id={`${ids}-official-h`} className="eyebrow">
-                From the label
+                {t.fromLabel}
               </h3>
               {official && (
                 <ListenButton
-                  text={`From the official label for ${selectedGeneric ?? "this medicine"}: ${official}`}
-                  label="Listen: from the label"
+                  text={`${t.officialFor(selectedGeneric ?? t.thisMed)} ${official}`}
+                  label={t.listenLabel}
                   iconOnly
                   size="sm"
                   variant="outlined"
@@ -370,30 +501,28 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
               <PlainText as="p" text={official} className="text-body" />
             ) : (
               <p className="text-meta text-md-on-surface-variant">
-                {selectedMed
-                  ? "No label text on file for this medicine yet."
-                  : "Pick a medicine to see what its official label lists as common side effects."}
+                {selectedMed ? t.noLabelYet : t.pickMed}
               </p>
             )}
             <p className="text-meta text-md-on-surface-variant">
-              Source: openFDA drug label, adverse reactions section.
+              {t.source}
             </p>
           </section>
         </div>
 
         {/* Right: post form + list */}
         <div className="lg:col-span-3 space-y-4 min-w-0">
-          <PostForm handle={handle} selectedMed={selectedMed} onPosted={load} />
+          <PostForm handle={handle} selectedMed={selectedMed} onPosted={load} lang={lang} />
 
           <p className="text-meta text-md-on-surface-variant">
-            If a side effect worries you, call your pharmacist or clinic.{" "}
+            {t.ifWorries}{" "}
             <a
               href={MEDWATCH}
               target="_blank"
               rel="noreferrer"
               className="text-md-tertiary underline underline-offset-4"
             >
-              Report a side effect to FDA MedWatch
+              {t.report}
             </a>
             .
           </p>
@@ -405,7 +534,7 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
             className="space-y-2"
           >
             <h3 id={`${ids}-posts-h`} className="eyebrow">
-              What people say
+              {t.whatPeople}
             </h3>
             {loadError && (
               <p role="alert" className="text-meta text-md-error">
@@ -414,7 +543,7 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
             )}
             {!loading && !loadError && posts.length === 0 && (
               <p className="text-meta text-md-on-surface-variant">
-                No posts here yet. Be the first to share how it went for you.
+                {t.noPosts}
               </p>
             )}
             {posts.length > 0 && (
@@ -436,22 +565,22 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
                       </span>
                       <span aria-hidden="true">·</span>
                       <time dateTime={p.created_at}>
-                        {relativeTime(p.created_at)}
+                        {relativeTime(p.created_at, lang)}
                       </time>
                     </div>
                     <PlainText as="p" text={p.body} className="text-body" />
                     {p.side_effect_tags.length > 0 && (
                       <ul
                         className="flex flex-wrap gap-2 list-none p-0 m-0"
-                        aria-label="Tags"
+                        aria-label={t.tags}
                       >
-                        {p.side_effect_tags.map((t) => (
-                          <li key={t}>
+                        {p.side_effect_tags.map((tag) => (
+                          <li key={tag}>
                             <Chip
                               asSpan
                               className="h-7 px-2.5 bg-md-surface-container-low"
                             >
-                              {TAG_LABEL[t] ?? t}
+                              {TAG_LABEL[lang][tag] ?? tag}
                             </Chip>
                           </li>
                         ))}
@@ -472,11 +601,14 @@ function PostForm({
   handle,
   selectedMed,
   onPosted,
+  lang,
 }: {
   handle: string;
   selectedMed: Med | null;
   onPosted: () => void;
+  lang: Lang;
 }) {
+  const t = T[lang];
   const [med, setMed] = useState<Med | null>(selectedMed);
   const [body, setBody] = useState("");
   const [tags, setTags] = useState<SideEffectTag[]>([]);
@@ -492,12 +624,12 @@ function PostForm({
     e.preventDefault();
     setErr("");
     if (!med) {
-      setErr("Pick the medicine you're talking about.");
+      setErr(t.pickMedErr);
       return;
     }
     const text = body.trim();
     if (text.length < 10) {
-      setErr("Say a little more — at least 10 characters.");
+      setErr(t.sayMore);
       return;
     }
     setState("sending");
@@ -516,7 +648,7 @@ function PostForm({
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
         // 422 carries the moderation reason as a plain sentence; shown inline under the text area.
-        setErr(data.error ?? "We couldn't post that. Please try again.");
+        setErr(data.error ?? t.postFail);
         setState("idle");
         return;
       }
@@ -525,7 +657,7 @@ function PostForm({
       setState("sent");
       onPosted();
     } catch {
-      setErr("We couldn't post that. Check your connection and try again.");
+      setErr(t.postNet);
       setState("idle");
     }
   };
@@ -536,35 +668,35 @@ function PostForm({
     <form onSubmit={submit} className="space-y-3" aria-labelledby={`${ids}-h`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 id={`${ids}-h`} className="eyebrow">
-          Share how it went for you
+          {t.share}
         </h3>
         <MedicinePicker
-          label="Medicine for your post"
+          label={t.postMed}
           value={med}
           onChange={setMed}
         />
       </div>
 
       <TextArea
-        label="What happened for you?"
+        label={t.whatHappened}
         hideLabel
-        placeholder="What happened for you? e.g. Nausea the first two weeks, then it settled once I took it with dinner."
+        placeholder={t.placeholder}
         value={body}
         maxLength={POST_MAX}
         onChange={(e) => setBody(e.target.value.slice(0, POST_MAX))}
-        hint={`${remaining} left. Your own experience only — no dose advice, no names, no contact details.`}
+        hint={t.hint(remaining)}
         error={err || undefined}
         className="[&_textarea]:min-h-20"
       />
 
       <fieldset>
-        <legend className="sr-only">Tags (optional)</legend>
+        <legend className="sr-only">{t.tagsLegend}</legend>
         <div className="flex flex-wrap gap-2">
-          {SIDE_EFFECT_TAGS.map((t) => {
-            const on = tags.includes(t);
+          {SIDE_EFFECT_TAGS.map((tag) => {
+            const on = tags.includes(tag);
             return (
               <label
-                key={t}
+                key={tag}
                 className={`inline-flex items-center gap-1.5 h-8 px-3 rounded-full text-meta font-medium cursor-pointer border transition-all duration-200 ease-md active:scale-95 focus-within:ring-2 focus-within:ring-md-primary focus-within:ring-offset-2 ${
                   on
                     ? "bg-md-primary text-md-on-primary border-md-primary"
@@ -577,12 +709,12 @@ function PostForm({
                   checked={on}
                   onChange={() =>
                     setTags((cur) =>
-                      on ? cur.filter((x) => x !== t) : [...cur, t],
+                      on ? cur.filter((x) => x !== tag) : [...cur, tag],
                     )
                   }
                 />
                 <span aria-hidden="true">{on ? "✓" : "+"}</span>
-                {TAG_LABEL[t]}
+                {TAG_LABEL[lang][tag]}
               </label>
             );
           })}
@@ -591,22 +723,22 @@ function PostForm({
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-meta text-md-on-surface-variant">
-          Posting as{" "}
+          {t.postingAs}{" "}
           <span className="font-medium text-md-on-background">{handle}</span>
           {med && (
             <>
               {" "}
-              about <MedName med={med} brands={false} />
+              {t.about} <MedName med={med} brands={false} />
             </>
           )}
         </p>
         <div className="flex items-center gap-3">
           <p role="status" className="text-meta text-md-on-surface-variant">
-            {state === "sent" && !err ? "Thanks — your post is up." : ""}
+            {state === "sent" && !err ? t.thanks : ""}
           </p>
           <Button type="submit" size="sm" disabled={state === "sending"}>
             <Send className="h-4 w-4" aria-hidden="true" />
-            {state === "sending" ? "Sharing…" : "Share"}
+            {state === "sending" ? t.sharing : t.shareBtn}
           </Button>
         </div>
       </div>

@@ -22,6 +22,7 @@ export const DoseInputSchema = z.object({
   unitsPerDose: z.number().nullable().default(null),
   unitLabel: z.enum(["tablet", "capsule", "mL", "puff", "drop", "patch", "unit"]).default("tablet"),
   timesPerDay: z.number().nullable().default(null),
+  howOftenText: z.string().default(""),
   route: z.enum(["oral", "topical", "inhaled", "other"]).default("oral"),
   withFood: z.boolean().nullable().default(null),
   asNeeded: z.boolean().default(false),
@@ -92,14 +93,48 @@ function parseUnits(text: string): { units: number | null; label: DoseInput["uni
   return { units: null, label: null, route: null };
 }
 
+const RANGE_SEP = String.raw`(?:to|-|–|—)`;
+
+/** True when the label gives a range ("6 to 8 times", "every 6-8 hours") rather than one count. */
+export function hasFrequencyRange(text: string): boolean {
+  const t = text.toLowerCase();
+  return (
+    new RegExp(String.raw`\bevery\s+${NUM_TOKEN}\s*${RANGE_SEP}\s*${NUM_TOKEN}\s*(?:hours?|hrs?|h)\b`).test(t) ||
+    new RegExp(String.raw`\bq\s*${NUM_TOKEN}\s*${RANGE_SEP}\s*${NUM_TOKEN}\s*(?:h|hrs?|hours?)\b`).test(t) ||
+    new RegExp(String.raw`\b${NUM_TOKEN}\s*${RANGE_SEP}\s*${NUM_TOKEN}\s*(?:x|times?)\s*(?:a|per|each|every|/)?\s*(?:day|daily|d)\b`).test(t)
+  );
+}
+
+/** Copy the frequency phrase from the bottle so we never invent "4 times a day" for a range. */
+export function parseHowOftenText(text: string): string {
+  const patterns = [
+    new RegExp(String.raw`\bevery\s+${NUM_TOKEN}\s*${RANGE_SEP}\s*${NUM_TOKEN}\s*(?:hours?|hrs?|h)\b`, "i"),
+    new RegExp(String.raw`\bq\s*${NUM_TOKEN}\s*${RANGE_SEP}\s*${NUM_TOKEN}\s*(?:h|hrs?|hours?)\b`, "i"),
+    new RegExp(String.raw`\b${NUM_TOKEN}\s*${RANGE_SEP}\s*${NUM_TOKEN}\s*(?:x|times?)\s*(?:a|per|each|every|/)?\s*(?:day|daily|d)\b`, "i"),
+    new RegExp(String.raw`\bevery\s+${NUM_TOKEN}\s*(?:hours?|hrs?|h)\b`, "i"),
+    /\bq\s*\d+\s*(?:h|hrs?|hours?)\b/i,
+    new RegExp(String.raw`\b${NUM_TOKEN}\s*(?:x|times?)\s*(?:a|per|each|every|/)?\s*(?:day|daily|d)\b`, "i"),
+    /\b(?:once|twice|three times|four times)\s+(?:a|per|each|every)\s+(?:day|daily)\b/i,
+    /\b(?:once|twice|three times|four times)\s+daily\b/i,
+    /\b(?:once a day|twice a day|once daily|twice daily|at bedtime|every morning|every night|nightly)\b/i,
+    /\b(?:bid|tid|qid|qd|qhs|q\.i\.d\.?|t\.i\.d\.?|b\.i\.d\.?|q\.?d\.?|q\.?h\.?s\.?)\b/i,
+  ];
+  for (const re of patterns) {
+    const m = text.match(re);
+    if (m) return m[0].replace(/\s+/g, " ").trim();
+  }
+  return "";
+}
+
 function parseTimesPerDay(text: string): number | null {
   const t = text.toLowerCase();
 
-  // Patterns we deliberately cannot express as "times per day".
+  // Patterns we deliberately cannot express as a single "times per day" number.
   if (/\bevery other day\b|\bevery (?:2|two) days\b|\bonce a week\b|\bweekly\b|\bevery week\b|\bmonthly\b/.test(t)) return null;
+  if (hasFrequencyRange(t)) return null;
 
-  // every N hours / qNh / q N h
-  let m = t.match(new RegExp(String.raw`\bevery\s+${NUM_TOKEN}\s*(?:to\s+\d+\s*)?(?:hours?|hrs?|h)\b`));
+  // every N hours / qNh / q N h  (single interval only — ranges stay as the printed phrase)
+  let m = t.match(new RegExp(String.raw`\bevery\s+${NUM_TOKEN}\s*(?:hours?|hrs?|h)\b`));
   if (!m) m = t.match(/\bq\s*(\d+)\s*(?:h|hrs?|hours?)\b/);
   if (m) {
     const n = toNum(m[1]);
@@ -176,6 +211,7 @@ export function parseDirectionsHeuristic(text: string, medHint?: MedHint): DoseI
   const strengthMg = parseStrength(userText);
   const u = parseUnits(userText);
   const timesPerDay = parseTimesPerDay(userText);
+  const howOftenText = parseHowOftenText(userText);
   const withFood = parseWithFood(userText);
   const asNeeded = parseAsNeeded(userText);
   const route = parseRoute(userText, u.route);
@@ -187,6 +223,7 @@ export function parseDirectionsHeuristic(text: string, medHint?: MedHint): DoseI
     unitsPerDose: u.units,
     unitLabel: u.label ?? "tablet",
     timesPerDay,
+    howOftenText,
     route,
     withFood,
     asNeeded,
@@ -200,10 +237,14 @@ export function parseDirectionsHeuristic(text: string, medHint?: MedHint): DoseI
 
 const PARSE_SYSTEM = `You extract the directions printed on a person's own medicine bottle into a fixed JSON schema.
 You never guess a dose. If a field is not stated in the text, use null (or false for asNeeded).
-Numbers must be copied exactly from the text. Output only JSON with keys:
+Numbers must be copied exactly from the text. Never convert a printed range into a single count.
+Output only JSON with keys:
 drugName (string), rxcui (""), strengthMg (number|null, milligrams only), unitsPerDose (number|null),
-unitLabel ("tablet"|"capsule"|"mL"|"puff"|"drop"|"patch"|"unit"), timesPerDay (number|null; "every 6 hours" = 4,
-"twice daily" = 2, "at bedtime" = 1), route ("oral"|"topical"|"inhaled"|"other"), withFood (boolean|null),
+unitLabel ("tablet"|"capsule"|"mL"|"puff"|"drop"|"patch"|"unit"),
+howOftenText (string; copy the frequency phrase exactly as printed, e.g. "6 to 8 times a day" or "every 6 to 8 hours"),
+timesPerDay (number|null; only when ONE count is stated. "twice daily" = 2, "every 8 hours" = 3, "at bedtime" = 1.
+If the label gives a range such as "6 to 8 times a day" or "every 6 to 8 hours", set timesPerDay to null and put the exact phrase in howOftenText),
+route ("oral"|"topical"|"inhaled"|"other"), withFood (boolean|null),
 asNeeded (boolean), userText (the input text verbatim).`;
 
 export interface ParseMerge {
@@ -229,8 +270,15 @@ export function mergeParses(regex: DoseInput, llm: DoseInput, text: string): Par
       continue;
     }
     if (l != null) {
-      // Only accept an LLM number the person actually wrote (or its every-N-hours form).
-      const literal = numberInText(l, text) || (key === "timesPerDay" && Number.isInteger(24 / l) && numberInText(24 / l, text));
+      // Only accept an LLM number the person actually wrote (or a single every-N-hours form).
+      // Never accept a derived timesPerDay when the bottle printed a range — that is how
+      // "every 6 to 8 hours" / "6 to 8 times a day" used to get rounded to 4.
+      const derivedOk =
+        key === "timesPerDay" &&
+        !hasFrequencyRange(text) &&
+        Number.isInteger(24 / l) &&
+        numberInText(24 / l, text);
+      const literal = numberInText(l, text) || derivedOk;
       if (literal) {
         out[key] = l;
         notes.push(`${key}: regex found nothing, accepted LLM value ${l} (present in text)`);
@@ -238,6 +286,15 @@ export function mergeParses(regex: DoseInput, llm: DoseInput, text: string): Par
         notes.push(`${key}: dropped LLM value ${l} (not in text)`);
       }
     }
+  }
+
+  if (!out.howOftenText && llm.howOftenText) {
+    const phrase = llm.howOftenText.replace(/\s+/g, " ").trim();
+    if (phrase && text.toLowerCase().includes(phrase.toLowerCase())) out.howOftenText = phrase;
+  }
+  if (hasFrequencyRange(text)) {
+    if (out.timesPerDay != null) notes.push(`timesPerDay: cleared ${out.timesPerDay} because the bottle printed a range`);
+    out.timesPerDay = null;
   }
 
   if (regex.withFood == null && llm.withFood != null) out.withFood = llm.withFood;

@@ -36,6 +36,8 @@ async function main() {
     ["1 capsule at bedtime", { unitsPerDose: 1, timesPerDay: 1, unitLabel: "capsule" }],
     ["2 puffs twice daily", { unitsPerDose: 2, timesPerDay: 2, unitLabel: "puff", route: "inhaled" }],
     ["ibuprofen 200 mg, 5 tablets 4 times a day", { drugName: "ibuprofen", strengthMg: 200, unitsPerDose: 5, timesPerDay: 4 }],
+    ["take 1 tablet 6 to 8 times a day", { unitsPerDose: 1, timesPerDay: null, howOftenText: "6 to 8 times a day" }],
+    ["1-2 tablets every 6 to 8 hours", { timesPerDay: null, howOftenText: "every 6 to 8 hours" }],
     // Typical scanned pharmacy-label lines (uppercase, salt + form words).
     ["TAKE 1 TABLET BY MOUTH TWICE DAILY WITH MEALS", { unitsPerDose: 1, timesPerDay: 2, withFood: true, unitLabel: "tablet", route: "oral", drugName: "" }],
     ["METFORMIN HCL 500 MG TABLET", { drugName: "metformin", strengthMg: 500, unitLabel: "tablet" }],

@@ -25,7 +25,7 @@ import { env } from "@/lib/env";
  */
 
 const GROK_TTS_URL = "https://api.x.ai/v1/tts";
-const TIMEOUT_MS = 20_000;
+const TIMEOUT_MS = 45_000;
 
 /** Languages Grok Voice TTS can speak, as BCP-47 tags the API accepts. */
 export const GROK_TTS_LANGS: Set<string> = new Set([
@@ -130,7 +130,7 @@ export async function grokTts(text: string, lang: string): Promise<Response> {
   } catch (e) {
     if (e instanceof GrokTtsError) throw e;
     const name = (e as Error)?.name;
-    throw new GrokTtsError(name === "AbortError" ? "grok tts: timeout after 20s" : `grok tts: ${(e as Error)?.message ?? "fetch failed"}`);
+    throw new GrokTtsError(name === "AbortError" ? "grok tts: timeout after 45s" : `grok tts: ${(e as Error)?.message ?? "fetch failed"}`);
   } finally {
     // The timer must outlive the header phase only; the body stream is consumed by the caller.
     clearTimeout(timer);

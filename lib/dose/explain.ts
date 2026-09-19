@@ -41,6 +41,8 @@ const REWRITE_SYSTEM =
 const COPY = {
   en: {
     noLabel: "We could not find official label text for this medicine.",
+    noLabelHelp:
+      "Official label text is the FDA-approved drug label — the same source pharmacists use. We look it up by this medicine's name. If nothing is on file, we cannot check your directions against that source. That can happen with a store-brand or combination product we cannot match, a supplement, a compounded medicine, or a name we do not recognize. Follow what your own bottle says, and ask a pharmacist to confirm.",
     missingFields: "We could not tell how much or how often to take from these directions.",
     guardrail: "We could not verify every part of these directions against the official label.",
     labelSays: "The label says:",
@@ -51,6 +53,8 @@ const COPY = {
   },
   es: {
     noLabel: "No encontramos el texto oficial de la etiqueta de este medicamento.",
+    noLabelHelp:
+      "El texto oficial de la etiqueta es la ficha aprobada por la FDA, la misma fuente que usan los farmacéuticos. La buscamos por el nombre de este medicamento. Si no hay nada registrado, no podemos comparar sus indicaciones con esa fuente. Puede pasar con una marca de tienda o un producto combinado que no reconocemos, un suplemento, un medicamento compuesto o un nombre que no identificamos. Siga lo que dice su propio frasco y pida a un farmacéutico que lo confirme.",
     missingFields: "No pudimos saber cuánto ni con qué frecuencia tomar según estas indicaciones.",
     guardrail: "No pudimos verificar cada parte de estas indicaciones con la etiqueta oficial.",
     labelSays: "La etiqueta dice:",
@@ -117,7 +121,7 @@ export function findMissedDoseSentences(chunks: LabelChunk[]): string[] {
 
 function timingLines(input: DoseInput, lang: Lang): string[] {
   const t = input.timesPerDay;
-  if (t == null) return [];
+  if (t == null) return input.howOftenText ? [input.howOftenText] : [];
   if (input.asNeeded) {
     const gap = Number.isInteger(24 / t) ? 24 / t : null;
     if (gap == null) return lang === "es" ? ["solo cuando lo necesite"] : ["only when you need it"];
@@ -154,14 +158,30 @@ export function templateRewrite(input: DoseInput, chunks: LabelChunk[], lang: La
     const verb = input.route === "topical" ? "Aplique" : input.route === "inhaled" ? "Inhale" : "Tome";
     const what = units != null ? `${units} ${unitWord}` : "su dosis";
     const how = route ? ` ${route}` : "";
-    const when = times != null ? (input.asNeeded ? `, solo cuando lo necesite, hasta ${times} ${times === 1 ? "vez" : "veces"} al día` : `, ${times} ${times === 1 ? "vez" : "veces"} al día`) : input.asNeeded ? ", solo cuando lo necesite" : "";
+    const when = input.howOftenText
+      ? `, ${input.howOftenText}`
+      : times != null
+        ? input.asNeeded
+          ? `, solo cuando lo necesite, hasta ${times} ${times === 1 ? "vez" : "veces"} al día`
+          : `, ${times} ${times === 1 ? "vez" : "veces"} al día`
+        : input.asNeeded
+          ? ", solo cuando lo necesite"
+          : "";
     const food = input.withFood === true ? ", con comida" : input.withFood === false ? ", con el estómago vacío" : "";
     plainDose = `${verb} ${what}${how}${when}${food}.`;
   } else {
     const verb = input.route === "topical" ? "Apply" : input.route === "inhaled" ? "Inhale" : "Take";
     const what = units != null ? `${units} ${unitWord}` : "your dose";
     const how = route ? ` ${route}` : "";
-    const when = times != null ? (input.asNeeded ? `, only when you need it, up to ${times} time${times === 1 ? "" : "s"} a day` : `, ${times} time${times === 1 ? "" : "s"} a day`) : input.asNeeded ? ", only when you need it" : "";
+    const when = input.howOftenText
+      ? `, ${input.howOftenText}`
+      : times != null
+        ? input.asNeeded
+          ? `, only when you need it, up to ${times} time${times === 1 ? "" : "s"} a day`
+          : `, ${times} time${times === 1 ? "" : "s"} a day`
+        : input.asNeeded
+          ? ", only when you need it"
+          : "";
     const food = input.withFood === true ? ", with food" : input.withFood === false ? ", on an empty stomach" : "";
     plainDose = `${verb} ${what}${how}${when}${food}.`;
   }
@@ -207,7 +227,7 @@ async function llmRewrite(input: DoseInput, chunks: LabelChunk[], lang: Lang): P
       labelChunks: chunks.map((c) => ({ chunkId: c.chunk_id, section: c.section, text: c.text })),
       instructions: [
         "Fill every key of the schema: status, plainDose, maxPerDayLine, timing, missedDoseLine, labelQuotes, numbersUsed, askYourPharmacist.",
-        "plainDose restates ONLY the person's directions above (their strength, units per dose, times per day, with food, as needed). Do not change any number.",
+        "plainDose restates ONLY the person's directions above (their strength, units per dose, howOftenText / times per day, with food, as needed). Do not change any number. If howOftenText is a range such as \"6 to 8 times a day\" or \"every 6 to 8 hours\", keep that exact phrase — never convert it to a single times-per-day count.",
         "maxPerDayLine may only quote a per-day maximum sentence that appears verbatim in labelChunks; otherwise use \"\".",
         "missedDoseLine may only quote a missed-dose sentence that appears verbatim in labelChunks; otherwise use \"\".",
         "labelQuotes: each text must be a verbatim substring of the labelChunks entry with that chunkId.",
@@ -327,7 +347,7 @@ export async function explainDose(input: DoseInput, lang: Lang = "en", deps: Exp
     log.push(dailyMg == null ? "ceiling: not checked (directions incomplete)" : "ceiling: not checked (no limit on file — not a pass)");
   }
 
-  if (unitsPerDose == null && timesPerDay == null) {
+  if (unitsPerDose == null && timesPerDay == null && !input.howOftenText) {
     log.push("input: no units per dose and no times per day → unverified");
     return finish(baseResult("unverified", ceilingChecked, log, lang, input, evidence, copy.missingFields));
   }
