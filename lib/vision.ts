@@ -7,7 +7,7 @@ import { LlmError } from "@/lib/llm";
  * Used to read the directions off a bottle photo. Returns TEXT ONLY — the dose pipeline's
  * confirmation step + guardrails still run on whatever comes back.
  */
-export const VISION_MODEL = process.env.XAI_VISION_MODEL ?? "grok-4-fast";
+export const VISION_MODEL = process.env.XAI_VISION_MODEL ?? "grok-4.20-0309-non-reasoning";
 
 export async function readImageText(dataUrl: string, prompt: string): Promise<string> {
   if (!isXaiConfigured()) throw new LlmError("XAI_API_KEY not set");

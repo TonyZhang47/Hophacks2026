@@ -1,7 +1,7 @@
 /** Server-only feature flags derived from env. Never import from client components. */
 export const env = {
   xaiKey: process.env.XAI_API_KEY ?? "",
-  xaiChatModel: process.env.XAI_CHAT_MODEL ?? "grok-4-fast",
+  xaiChatModel: process.env.XAI_CHAT_MODEL ?? "grok-4.20-0309-non-reasoning",
   elevenKey: process.env.ELEVENLABS_API_KEY ?? "",
   elevenVoiceId: process.env.ELEVENLABS_VOICE_ID ?? "",
   openFdaKey: process.env.OPENFDA_API_KEY ?? "",

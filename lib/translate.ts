@@ -30,11 +30,12 @@ export interface TranslateResult {
 
 const LANG_NAME: Record<TranslateTarget, string> = { es: "Spanish (Latin American, plain everyday words)", en: "English (plain everyday words)" };
 
-const UNIT = "(?:mg|mcg|µg|ug|g|kg|mL|ml|L|%|IU|units?|tablets?|capsules?|drops?|puffs?|patch(?:es)?)";
-const TIME_UNIT = "(?:hours?|hrs?|minutes?|mins?|days?|weeks?|months?|times?)";
-// Order matters: time spans first ("6 hours"), then number+unit, then bare numbers.
+// Only true measurement units ride inside the placeholder; countable words (tablets, times, hours)
+// stay outside so they get translated ("2 times" → "2 veces").
+const UNIT = "(?:mg|mcg|µg|ug|g|kg|mL|ml|L|%|IU)";
+// Order matters: number+unit first ("2,550 mg"), then bare numbers.
 const NUMBER_TIME_RE = new RegExp(
-  `\\d[\\d,.]*\\s?${TIME_UNIT}\\b|\\d[\\d,.]*\\s?${UNIT}\\b|\\d[\\d,.]*`,
+  `\\d[\\d,.]*\\s?${UNIT}\\b|\\d[\\d,.]*`,
   "g",
 );
 
