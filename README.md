@@ -1,12 +1,16 @@
 # Accessible Prescription Interaction Assistant
 
-HopHacks 2026 project: help people understand their medications in plain language.
+**HopHacks 2026 — Bloomberg track.** Help people understand their medications in plain language.
+
+Built end-to-end with **Cursor**. Weekend planning and architecture assisted by **Grok Bot** (team workflow, not a runtime product API).
 
 Someone types or photographs their meds and gets:
 
 - a **plain-English interaction risk summary**
 - a **visual graph** of how those drugs interact
-- **spoken / translated** explanations
+- **spoken / translated** explanations (English read-aloud by default)
+- optional **timed spoken prompts** in the UI
+- live **ask out loud** Q&A
 - a **one-page PDF** to bring to a doctor
 
 This is an accessibility product, not a replacement for a pharmacist or clinician. Every screen should say: **confirm with a licensed professional before changing how you take any medicine.**
@@ -26,38 +30,43 @@ Use each vendor where it is strongest. Do not run the same job through two model
 | "What happens / How serious / What to do" | **Grok 4.6** | The product value is rewriting dense FDA text into short, grounded cards |
 | Interaction graph (source of truth) | **Your code** (D3, Cytoscape.js, or vis-network) | Edges come from structured severity, not from an image model |
 | Patient-friendly pictures / explainer clips | **Grok Imagine** | Illustrations and short videos for "what this warning looks like in daily life" |
-| Read this page aloud, many languages | **ElevenLabs TTS** (`eleven_multilingual_v2` or `eleven_v3`) | Highest-quality one-shot playback and translation-friendly voices |
-| Hands-free Q&A ("what should I ask my doctor?") | **Grok Voice** (speech-to-speech) | Real-time conversation with tools: add med, explain pair, export PDF |
+| Default "Read aloud" (English) | **ElevenLabs TTS** (`eleven_multilingual_v2` or `eleven_v3`) | Default language = English; warmer, higher-quality playback than Grok TTS |
+| Warmer / non-English read-aloud | **ElevenLabs TTS** | Best quality for multilingual voices; Grok translates cards first, then ElevenLabs speaks |
+| Timed spoken prompts (UI toggle) | **ElevenLabs TTS** | Same playback path as read-aloud; off by default |
+| Live "ask out loud" Q&A | **Grok Voice** (speech-to-speech) | Real-time conversation with tools: add med, explain pair, export PDF |
+| Weekend planning / architecture | **Grok Bot** (outside the product) | Team planning only — not called from the app |
 | Optional: transcribe a spoken med list | **ElevenLabs Scribe v2** (Medical if you have it) | Strong STT; Grok Voice already covers live talk, so only add Scribe if you need async transcription |
 
-**Rule of thumb:** Grok thinks and sees. ElevenLabs speaks polished audio. Imagine *illustrates*; it does not diagnose.
+**Rule of thumb:** Grok thinks, sees, and converses. ElevenLabs speaks polished audio (read-aloud + timed prompts). Imagine *illustrates*; it does not diagnose.
+
+Ship **both** voice vendors with clear jobs: **ElevenLabs = playback**, **Grok Voice = conversation**. Do not expose two competing "TTS" buttons.
 
 ---
 
 ## Architecture
 
 ```
-[Web app]
+[Web app — built with Cursor]
    camera / type / voice
         |
         v
 [API server — keep all vendor keys here]
-   1. Vision / text intake  →  Grok 4.6
-   2. Normalize names       →  RxNorm
-   3. Labels + interactions →  openFDA + DDInter
-   4. Pairwise graph        →  your code
-   5. Plain-English cards   →  Grok 4.6 (JSON)
-   6. Illustrations         →  Grok Imagine (optional, cache)
-   7. TTS / translate-speak →  ElevenLabs
-   8. Live voice agent      →  Grok Voice (WebSocket + tools)
-   9. Calendar .ics + PDF   →  your code
+   1. Vision / text intake     →  Grok 4.6
+   2. Normalize names          →  RxNorm
+   3. Labels + interactions    →  openFDA + DDInter
+   4. Pairwise graph           →  your code
+   5. Plain-English cards      →  Grok 4.6 (JSON)
+   6. Illustrations            →  Grok Imagine (optional, cache)
+   7. Read-aloud + timed prompts →  ElevenLabs (English default; multilingual after Grok translate)
+   8. Live ask-out-loud agent  →  Grok Voice (WebSocket + tools)
+   9. Calendar .ics + PDF      →  your code
 ```
 
-Keep xAI and ElevenLabs keys on the server. The browser should never hold them.
+Keep xAI and ElevenLabs keys on the server (e.g. `.env.local` for the Cursor-built stack). The browser should never hold them. Never commit secrets.
 
 Suggested stack for a hackathon weekend:
 
-- **Frontend:** Next.js (or Vite + React) — camera upload, graph, PDF preview, language picker
+- **Frontend:** Next.js (or Vite + React) — camera upload, graph, PDF preview, language picker, timed-prompts toggle
 - **Backend:** Next.js Route Handlers or a small FastAPI/Express app
 - **Graph:** Cytoscape.js — nodes = drugs, edges = severity color
 - **PDF:** `@react-pdf/renderer` or `pdf-lib`
@@ -136,22 +145,25 @@ That graph must be data-driven. Judges should be able to click red edges and see
 
 This is the feature to demo first. If the LLM step is late, you still have a graph + raw labels.
 
-### 5. Text to speech, translation, read-aloud
+### 5. Text to speech, translation, read-aloud, timed prompts
 
-Split by mode:
+Split by mode — both vendors ship; jobs do not overlap:
 
 | Mode | API |
 | --- | --- |
-| "Read this card" / "Read my whole summary" | **ElevenLabs TTS** — one request per card or concatenated summary. Use `eleven_multilingual_v2` (quality) or Flash if you stream. |
-| UI language: Spanish, Chinese, etc. | **Grok 4.6** translates the JSON cards → then ElevenLabs speaks the translated text. `language_code` on TTS is pronunciation, not translation. Translate first. |
-| Hands-free: "Add lisinopril and metformin and tell me the risks" | **Grok Voice** speech-to-speech with tools (`search_drug`, `add_med`, `get_pair_card`). Best demo for accessibility. |
-| Pronouncing drug names | ElevenLabs `replace` / pronunciation map, or Grok TTS `replace` if you use xAI TTS instead |
+| Default "Read this card" / "Read my whole summary" (English) | **ElevenLabs TTS** — one request per card or concatenated summary. Use `eleven_multilingual_v2` (quality) or Flash if you stream. Default UI language = English. |
+| Warmer / non-English read-aloud (Spanish, Chinese, etc.) | **Grok 4.6** translates the JSON cards → then **ElevenLabs** speaks. `language_code` on TTS is pronunciation, not translation. Translate first. Better non-English quality than Grok TTS. |
+| Timed spoken prompts | **ElevenLabs TTS** — short guidance lines on a delay (see below). Same playback path; not Grok Voice. |
+| Live "ask out loud" Q&A | **Grok Voice** speech-to-speech with tools (`search_drug`, `add_med`, `get_pair_card`). Product integration + conversation demo. |
+| Pronouncing drug names | ElevenLabs `replace` / pronunciation map |
 
-**Hackathon recommendation:** implement ElevenLabs read-aloud + a language dropdown on day 1. Add Grok Voice as the stretch "talk to my med list" demo if the pipeline is stable.
+**Timed spoken prompts (UI toggle, off by default):**
 
-If you must pick **only one** voice vendor: pick **ElevenLabs** for read-aloud/translation quality, or **Grok Voice** if the live agent is your headline. Using both is coherent if they have different jobs (playback vs conversation).
+- User can turn this on in settings so demos stay quiet unless enabled.
+- After the graph loads, or when a major edge is selected, speak a short prompt on a delay — e.g. *"Tap the red edge to hear what this interaction means."*
+- Uses the same ElevenLabs TTS path as read-aloud. Do not route these through Grok Voice.
 
-Grok's own TTS (`POST /v1/tts`) is a backup if ElevenLabs quota is tight. Prefer not to ship two TTS buttons.
+Grok's own TTS (`POST /v1/tts`) is a backup only if ElevenLabs quota is tight. Prefer not to ship two TTS buttons.
 
 ### 6. Visual graph + Imagine
 
@@ -189,11 +201,11 @@ Ship in this order so you always have a demoable slice.
 1. **Med list + RxNorm search** (2–10 drugs)
 2. **Pairwise table + colored graph** from DDInter/openFDA
 3. **Grok rewrite** into What / Serious / Do
-4. **ElevenLabs "Read summary"** + language toggle (Grok translates, ElevenLabs speaks)
+4. **ElevenLabs English "Read summary"** + language toggle (Grok translates, ElevenLabs speaks) + **timed-prompts toggle** (off by default)
 5. **PDF export**
 6. **Prescription camera + confirm + `.ics`**
 7. **Imagine illustrations** for major edges
-8. **Grok Voice agent** with tools
+8. **Grok Voice** live ask-out-loud agent with tools
 
 If you only finish 1–5, you still have the accessibility story (plain language + speech + doctor sheet). 6–8 are the wow features.
 
@@ -215,7 +227,7 @@ Useful endpoints:
 - xAI Voice / TTS: [Text to speech](https://docs.x.ai/developers/model-capabilities/audio/text-to-speech), [Speech to speech](https://docs.x.ai/developers/model-capabilities/audio/speech-to-speech)
 - ElevenLabs TTS: [Text to speech](https://elevenlabs.io/docs/overview/capabilities/text-to-speech)
 
-Environment variables (never commit these):
+Environment variables (never commit these; use `.env.local` for Cursor local runs):
 
 ```
 XAI_API_KEY=
@@ -232,7 +244,12 @@ A volunteer (or judge) can:
 
 1. Add 3–4 common meds (or photograph a sample Rx)
 2. See a graph with at least one highlighted interaction
-3. Hear the summary in another language
+3. Hear the summary in English (default), then optionally in another language
 4. Download a one-page PDF
+
+**Stretch demo beats:**
+
+5. Toggle **timed spoken prompts** on and hear a delayed UI prompt
+6. **Ask a question out loud** via Grok Voice (e.g. "What should I ask my doctor?")
 
 That loop is the product. Everything else is polish.
