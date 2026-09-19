@@ -222,7 +222,101 @@ Stretch:
 
 **Infra split:** DigitalOcean hosts the app; Snowflake holds interaction data, label RAG corpus, clinic directory, community posts, and caches. All Snowflake access goes through Route Handlers + `lib/snowflake.ts`. No user accounts; no real PHI anywhere; community posts are anonymous and moderated.
 
-Deploy: connect the GitHub repo to **App Platform**, enable autodeploy from `main`, set encrypted env vars (XAI + ElevenLabs + Snowflake + openFDA). Optional `.do/app.yaml` for reproducible deploy.
+Deploy: connect the GitHub repo to **App Platform**, enable autodeploy from `main`, set encrypted env vars (XAI + ElevenLabs + Snowflake + openFDA). Commit `.do/app.yaml` (below) for a reproducible deploy.
+
+## DigitalOcean deploy notes (do these; Cursor will not infer them)
+
+App Platform runs Next.js as a **long-running Node container** behind Cloudflare. That is simpler than serverless but has a few hard edges.
+
+**Back end**
+1. **Node runtime only.** Every route handler starts with `export const runtime = 'nodejs'` and `export const dynamic = 'force-dynamic'`. Never use the Edge runtime — `snowflake-sdk` and `@react-pdf/renderer` are Node-only.
+2. **Keep the Snowflake driver out of the bundle.** In `next.config.ts`: `serverExternalPackages: ['snowflake-sdk']`. Open **one** connection (or a small pool) lazily in `lib/snowflake.ts` and reuse it for the life of the process; do not connect per request.
+3. **Multi-line secrets.** For key-pair auth, store the private key as base64 in `SNOWFLAKE_PRIVATE_KEY_B64` and decode at runtime. Do not paste PEM newlines into App Platform env vars.
+4. **100-second request ceiling.** Cloudflare drops any HTTP request that has not started responding within ~100 s. `/api/tts` and `/api/dose/explain` must **stream** (`return new Response(readableStream, { headers: { 'Content-Type': 'audio/mpeg' } })` for audio). **Never run a seed from an API route.** Seeds for `INTERACTIONS`, `LABEL_SECTIONS`, `DOSE_LIMITS`, `CLINICS`, `ZIP_CENTROIDS` live in `scripts/seed-*.ts` and run locally with `.env.local`, or as an App Platform **pre-deploy job** component.
+5. **WebSockets are not Route Handlers.** Next.js cannot host a WebSocket server. The stretch Grok Voice Agent (`wss://api.x.ai/v1/realtime`) needs a tiny separate Node WS proxy (`services/voice-proxy/`, its own App Platform service component) that holds `XAI_API_KEY`, or a short-lived client token if xAI offers one. App Platform closes idle WebSockets after ~1–2 min — send a ping every 30 s. MVP does not need this.
+6. **Ephemeral filesystem.** Nothing written to disk survives a restart or deploy. Audio cache = in-memory LRU (cap ~50 MB) or DO Spaces (stretch). Community posts, confirmations, sessions = Snowflake only. Prescription photos (stretch) stay in memory for the request and are never written.
+7. **Port + health check.** App Platform expects the service on **8080**. `package.json`: `"start": "next start -p 8080"` and `http_port: 8080` in `app.yaml`. Add `app/api/health/route.ts` that returns `200 {"ok":true}` **without touching Snowflake**, so a suspended warehouse cannot fail the health check and restart-loop the app.
+8. **Warehouse cold start.** Set the Snowflake warehouse to `AUTO_RESUME = TRUE`, `AUTO_SUSPEND = 300`. First query after idle takes several seconds — the UI shows a "Warming up…" state on the first `/api/*` call instead of an error. Before judging, hit `/api/meds/search?q=ibuprofen` once to warm it.
+9. **Instance size + Node.** Builds get 15 GiB so `next build` is fine. Run on the **1 GB** instance (`basic-xs`), not 512 MB — the Snowflake driver plus server PDF rendering is tight on the smallest tier. Set `"engines": { "node": ">=20" }` in `package.json`. If the build ever OOMs, set `NODE_OPTIONS=--max-old-space-size=4096` as a build-scope env var.
+10. **No-store on APIs.** Every `/api/*` response sets `Cache-Control: no-store`. Responses are per-user, and DigitalOcean flags Next.js behind their CDN for cache-poisoning risk otherwise.
+
+**Front end**
+- Nothing structural. HTTPS is automatic, so browser geolocation for the clinic finder works.
+- `NEXT_PUBLIC_*` values are baked at **build** time — set them with scope `RUN_AND_BUILD_TIME` in `app.yaml`. There must be no secrets among them (there should be none at all in MVP).
+- The Listen button uses one `<audio>` element pointed at the streamed `/api/tts` response; do not buffer the whole file client-side before playing.
+- Cytoscape and client-side PDF need no changes.
+
+**`.do/app.yaml` (commit this; replace `<owner>`)**
+```yaml
+name: rxplain
+region: nyc
+services:
+  - name: web
+    github:
+      repo: <owner>/Hophacks2026
+      branch: main
+      deploy_on_push: true
+    source_dir: /
+    environment_slug: node-js
+    build_command: npm ci && npm run build
+    run_command: npm run start
+    http_port: 8080
+    instance_count: 1
+    instance_size_slug: basic-xs
+    health_check:
+      http_path: /api/health
+      initial_delay_seconds: 20
+      period_seconds: 30
+    routes:
+      - path: /
+    envs:
+      - key: XAI_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: ELEVENLABS_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: OPENFDA_API_KEY
+        scope: RUN_TIME
+        type: SECRET
+      - key: SNOWFLAKE_ACCOUNT
+        scope: RUN_TIME
+        type: SECRET
+      - key: SNOWFLAKE_USERNAME
+        scope: RUN_TIME
+        type: SECRET
+      - key: SNOWFLAKE_PASSWORD
+        scope: RUN_TIME
+        type: SECRET
+      - key: SNOWFLAKE_WAREHOUSE
+        scope: RUN_TIME
+      - key: SNOWFLAKE_DATABASE
+        scope: RUN_TIME
+      - key: SNOWFLAKE_SCHEMA
+        scope: RUN_TIME
+      - key: SNOWFLAKE_ROLE
+        scope: RUN_TIME
+      - key: CORTEX_SEARCH_SERVICE
+        scope: RUN_TIME
+        value: LABEL_SEARCH
+      - key: NODE_ENV
+        scope: RUN_AND_BUILD_TIME
+        value: production
+# Stretch only — separate component for the Grok Voice Agent WebSocket proxy:
+#  - name: voice-proxy
+#    source_dir: /services/voice-proxy
+#    environment_slug: node-js
+#    run_command: node server.js
+#    http_port: 8080
+#    routes:
+#      - path: /ws
+#    envs:
+#      - key: XAI_API_KEY
+#        scope: RUN_TIME
+#        type: SECRET
+```
+
+Secret values are entered once in the App Platform UI (or `doctl apps update --spec`); the YAML only declares the keys.
 
 ## Env vars
 ```
@@ -233,6 +327,7 @@ OPENFDA_API_KEY=              # optional but recommended
 SNOWFLAKE_ACCOUNT=
 SNOWFLAKE_USERNAME=
 SNOWFLAKE_PASSWORD=           # or key-pair / PAT — prefer least privilege
+SNOWFLAKE_PRIVATE_KEY_B64=    # optional: base64 PEM for key-pair auth (App Platform env vars are single-line)
 SNOWFLAKE_WAREHOUSE=
 SNOWFLAKE_DATABASE=
 SNOWFLAKE_SCHEMA=
@@ -243,8 +338,8 @@ CORTEX_SEARCH_SERVICE=LABEL_SEARCH   # optional; if unset, use SQL section looku
 Document in README + `.env.example`. Never commit secrets.
 
 ## Build order (follow this)
-1. Scaffold Next.js + Tailwind; RxPlain header + disclaimer banner; footer links to Privacy + Terms; top nav with **Meds** and **Community**.
-2. `lib/snowflake.ts` connection helper + create/seed `INTERACTIONS`, `DOSE_LIMITS`, `ZIP_CENTROIDS`, `CLINICS` (and empty cache/community tables).
+1. Scaffold Next.js + Tailwind; RxPlain header + disclaimer banner; footer links to Privacy + Terms; top nav with **Meds** and **Community**. Add `/api/health`, `next start -p 8080`, `engines.node`, `serverExternalPackages`, and `.do/app.yaml` now so the first deploy works.
+2. `lib/snowflake.ts` singleton connection helper + `scripts/seed-*.ts` for `INTERACTIONS`, `DOSE_LIMITS`, `ZIP_CENTROIDS`, `CLINICS` (and empty cache/community tables). Seeds run locally, never from a route.
 3. RxNorm search UI + med chips (`/api/meds/search`, optional cache write).
 4. Pairwise check via Snowflake + openFDA evidence (`/api/interactions/check`). While here, write full label sections for each looked-up RxCUI into `LABEL_SECTIONS`.
 5. Grok JSON cards + Cytoscape graph (optional `CARD_CACHE`).
@@ -286,7 +381,7 @@ Document in README + `.env.example`. Never commit secrets.
 ## Deliverables
 1. Runnable Next.js app branded **RxPlain**: MVP path against live RxNorm/openFDA + Snowflake-hosted DDInter, label RAG corpus, dose limits, clinics, and community posts.
 2. Modules: `lib/snowflake.ts`, `lib/rxnorm.ts`, `lib/openfda.ts`, `lib/interactions.ts`, `lib/llm.ts`, `lib/dose/explain.ts`, `lib/dose/guardrails.ts`, `lib/tts/index.ts`, `lib/tts/grok.ts`, `lib/tts/elevenlabs.ts`, `lib/translate.ts`, `lib/clinics.ts`, `lib/community.ts`, `lib/pdf.ts`.
-3. Short README + `.env.example` + Privacy Policy + Terms + SQL seed scripts for `INTERACTIONS`, `LABEL_SECTIONS` (demo meds), `DOSE_LIMITS`, `CLINICS`, `ZIP_CENTROIDS` + optional `.do/app.yaml`.
+3. Short README + `.env.example` + Privacy Policy + Terms + `scripts/seed-*.ts` for `INTERACTIONS`, `LABEL_SECTIONS` (demo meds), `DOSE_LIMITS`, `CLINICS`, `ZIP_CENTROIDS` + committed `.do/app.yaml` + `app/api/health/route.ts`.
 4. Seed/demo meds, a seeded rural ZIP with clinics, and 10–15 seeded community posts if APIs are slow.
 5. App routes or pages for `/privacy`, `/terms`, `/community` (footer/nav linked).
 6. Live DigitalOcean App Platform deploy for the science-fair demo.

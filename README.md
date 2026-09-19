@@ -101,9 +101,14 @@ Stretch (only after MVP works):
 All DB reads/writes happen inside `/api/*` via `lib/snowflake.ts`.
 
 ### DigitalOcean deploy
-- Create App from the GitHub repo; autodeploy `main`
-- Set encrypted App Platform env vars (same as `.env.local`)
-- Optional `.do/app.yaml` for a repeatable app spec
+- Create App from the GitHub repo; autodeploy `main`; commit `.do/app.yaml` (spec in the master prompt)
+- Set encrypted App Platform env vars (same as `.env.local`); base64 any multi-line key
+- Service listens on **8080** (`next start -p 8080`); `/api/health` returns 200 without touching Snowflake
+- All routes use the Node runtime; `snowflake-sdk` in `serverExternalPackages`; one long-lived connection
+- Cloudflare drops requests over ~100 s → stream TTS / dose responses; **seeds run as local scripts, never as routes**
+- Filesystem is ephemeral → audio cache in memory, everything else in Snowflake
+- Run on the 1 GB instance; Node ≥ 20
+- Stretch voice agent needs a separate WebSocket proxy service (Route Handlers can't host WS)
 - Do **not** use DigitalOcean Managed DB for MVP — Snowflake already holds data
 - Stretch only: Spaces for media cache if Imagine ships
 
