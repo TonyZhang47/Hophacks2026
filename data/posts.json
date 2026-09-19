@@ -1,1 +1,152 @@
-[]
+[
+  {
+    "post_id": "seed-0001",
+    "rxcui": "6809",
+    "drug_name": "metformin",
+    "body": "Nausea the first two weeks, then it settled down once I started taking it with dinner instead of on an empty stomach. Now I barely notice it.",
+    "side_effect_tags": ["nausea", "stomach"],
+    "moderation_status": "approved",
+    "created_at": "2026-09-16T14:12:00.000Z",
+    "anon_handle": "quiet-otter"
+  },
+  {
+    "post_id": "seed-0002",
+    "rxcui": "6809",
+    "drug_name": "metformin",
+    "body": "Loose stools for about a month. My pharmacist said that's common early on. It did get better, but I plan my mornings around it.",
+    "side_effect_tags": ["stomach"],
+    "moderation_status": "approved",
+    "created_at": "2026-09-10T09:40:00.000Z",
+    "anon_handle": "gentle-heron"
+  },
+  {
+    "post_id": "seed-0003",
+    "rxcui": "6809",
+    "drug_name": "metformin",
+    "body": "Honestly no side effects for me except less appetite. I eat smaller meals now and don't feel hungry between them.",
+    "side_effect_tags": ["appetite"],
+    "moderation_status": "approved",
+    "created_at": "2026-08-28T18:05:00.000Z",
+    "anon_handle": "brave-sparrow"
+  },
+  {
+    "post_id": "seed-0004",
+    "rxcui": "5640",
+    "drug_name": "ibuprofen",
+    "body": "Upset stomach if I take it without food. With a snack it's fine. I learned that the hard way after a week of heartburn.",
+    "side_effect_tags": ["stomach"],
+    "moderation_status": "approved",
+    "created_at": "2026-09-14T20:30:00.000Z",
+    "anon_handle": "sunny-badger"
+  },
+  {
+    "post_id": "seed-0005",
+    "rxcui": "5640",
+    "drug_name": "ibuprofen",
+    "body": "Works for my knee but I get a headache the next morning sometimes, which feels backwards. Drinking more water seemed to help.",
+    "side_effect_tags": ["headache"],
+    "moderation_status": "approved",
+    "created_at": "2026-08-22T11:15:00.000Z",
+    "anon_handle": "mellow-fox"
+  },
+  {
+    "post_id": "seed-0006",
+    "rxcui": "5640",
+    "drug_name": "ibuprofen",
+    "body": "A little dizziness when I stand up fast on the days I use it. Goes away in a few seconds. Mentioned it at my clinic visit and they made a note.",
+    "side_effect_tags": ["dizziness"],
+    "moderation_status": "approved",
+    "created_at": "2026-08-05T16:45:00.000Z",
+    "anon_handle": "calm-walrus"
+  },
+  {
+    "post_id": "seed-0007",
+    "rxcui": "11289",
+    "drug_name": "warfarin",
+    "body": "I bruise more easily now, big purple ones from bumps I don't even remember. My clinic said to mention any that show up for no reason.",
+    "side_effect_tags": ["other"],
+    "moderation_status": "approved",
+    "created_at": "2026-09-12T08:20:00.000Z",
+    "anon_handle": "steady-crane"
+  },
+  {
+    "post_id": "seed-0008",
+    "rxcui": "11289",
+    "drug_name": "warfarin",
+    "body": "Nosebleeds a couple of times when the air got dry. The blood check appointments are a hassle when the clinic is 40 minutes away, but they matter.",
+    "side_effect_tags": ["other"],
+    "moderation_status": "approved",
+    "created_at": "2026-08-30T13:00:00.000Z",
+    "anon_handle": "patient-moose"
+  },
+  {
+    "post_id": "seed-0009",
+    "rxcui": "11289",
+    "drug_name": "warfarin",
+    "body": "Gums bleed a bit when I brush. Switched to a softer toothbrush and it's better. Nothing else so far, just careful with cuts in the kitchen.",
+    "side_effect_tags": ["other"],
+    "moderation_status": "approved",
+    "created_at": "2026-08-01T19:30:00.000Z",
+    "anon_handle": "humble-lynx"
+  },
+  {
+    "post_id": "seed-0010",
+    "rxcui": "29046",
+    "drug_name": "lisinopril",
+    "body": "Dry cough that wouldn't quit. Tickly, worse at night, no cold or anything. Turns out it's a known thing with this one, so I brought it up at my next visit.",
+    "side_effect_tags": ["other", "sleep"],
+    "moderation_status": "approved",
+    "created_at": "2026-09-15T07:55:00.000Z",
+    "anon_handle": "quiet-otter"
+  },
+  {
+    "post_id": "seed-0011",
+    "rxcui": "29046",
+    "drug_name": "lisinopril",
+    "body": "Lightheaded for the first few days, especially getting out of bed. I sit on the edge for a minute now before standing. It faded after a week.",
+    "side_effect_tags": ["dizziness"],
+    "moderation_status": "approved",
+    "created_at": "2026-08-25T15:10:00.000Z",
+    "anon_handle": "wandering-elk"
+  },
+  {
+    "post_id": "seed-0012",
+    "rxcui": "29046",
+    "drug_name": "lisinopril",
+    "body": "Mild headache the first week and then nothing. Blood pressure numbers came down, which my clinic was happy about. The cough people mention never hit me.",
+    "side_effect_tags": ["headache"],
+    "moderation_status": "approved",
+    "created_at": "2026-08-12T10:25:00.000Z",
+    "anon_handle": "cozy-beaver"
+  },
+  {
+    "post_id": "seed-0013",
+    "rxcui": "36437",
+    "drug_name": "sertraline",
+    "body": "Nausea and a jittery feeling the first ten days or so. It settled. Sleep was rough at first too, then it evened out around week three.",
+    "side_effect_tags": ["nausea", "sleep", "mood"],
+    "moderation_status": "approved",
+    "created_at": "2026-09-08T21:40:00.000Z",
+    "anon_handle": "hopeful-finch"
+  },
+  {
+    "post_id": "seed-0014",
+    "rxcui": "36437",
+    "drug_name": "sertraline",
+    "body": "Vivid dreams and less appetite. Mood is steadier than it's been in a long while, which is why I'm sticking with it and telling my clinic how it's going.",
+    "side_effect_tags": ["sleep", "appetite", "mood"],
+    "moderation_status": "approved",
+    "created_at": "2026-08-19T12:35:00.000Z",
+    "anon_handle": "tender-owl"
+  },
+  {
+    "post_id": "seed-0015",
+    "rxcui": "36437",
+    "drug_name": "sertraline",
+    "body": "Some stomach upset and yawning a lot the first couple of weeks. Both eased off. Taking it in the morning worked better for my sleep than at night.",
+    "side_effect_tags": ["stomach", "sleep"],
+    "moderation_status": "approved",
+    "created_at": "2026-07-29T09:05:00.000Z",
+    "anon_handle": "bright-tortoise"
+  }
+]

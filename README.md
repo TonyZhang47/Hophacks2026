@@ -30,6 +30,20 @@ For the full Cursor build instruction, see [`CURSOR_MASTER_PROMPT.md`](CURSOR_MA
 
 ---
 
+## Run it
+
+```bash
+npm install
+cp .env.example .env.local   # optional — the app runs without any keys
+npm run dev                  # http://localhost:3000
+```
+
+**Demo mode.** With no keys set, RxPlain still runs end to end: interactions and label text come from the seeds in `data/`, plain-language cards use deterministic templates instead of Grok, and the Listen buttons fall back to the browser's built-in speech engine. `/api/health` reports which mode each piece is in. Add `XAI_API_KEY` to turn on Grok cards, Grok Voice, and Grok-based parsing/translation; add `ELEVENLABS_API_KEY` for the secondary voice; add the `SNOWFLAKE_*` vars to switch the data layer from in-memory seeds to Snowflake.
+
+**Snowflake.** Run `sql/schema.sql` once, then `npm run seed:snowflake` (loads every file in `data/`). Optionally create the `LABEL_SEARCH` Cortex Search service (commented in the schema) and set `CORTEX_SEARCH_SERVICE`; without it, retrieval falls back to a plain section lookup.
+
+**Layout.** `app/` routes and `/api/*` handlers · `components/` UI (base pieces in `components/ui`) · `lib/` server modules (`db/` adapter, `dose/` guardrails, `tts/` router) · `data/` seeds · `scripts/` seeds and smoke tests · `.do/app.yaml` DigitalOcean spec.
+
 ## API split (keep it simple)
 
 Use each source for one job. Do not add a second vendor for the same job.
