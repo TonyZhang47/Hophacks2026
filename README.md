@@ -50,7 +50,7 @@ Use each source for one job. Do not add a second vendor for the same job.
 ## Architecture
 
 ```
-[Next.js on Vercel — browser]
+[Next.js on DigitalOcean App Platform — browser]
    search meds
         |
         v
@@ -71,7 +71,7 @@ Stretch (only after MVP works):
    - One Grok Imagine explainer image for a validated major pair
 ```
 
-Stack: Next.js App Router + TypeScript + Tailwind + **Snowflake** (server-only). No user login. No real PHI in the database.
+**Infra:** **DigitalOcean App Platform** hosts the Next.js app (GitHub autodeploy). **Snowflake** is the database. Stack: Next.js App Router + TypeScript + Tailwind. No user login. No real PHI in the database.
 
 ### Snowflake tables (MVP)
 
@@ -83,6 +83,13 @@ Stack: Next.js App Router + TypeScript + Tailwind + **Snowflake** (server-only).
 | `DEMO_SESSIONS` | Optional anonymous med list + results |
 
 All DB reads/writes happen inside `/api/*` via `lib/snowflake.ts`.
+
+### DigitalOcean deploy
+- Create App from the GitHub repo; autodeploy `main`
+- Set encrypted App Platform env vars (same as `.env.local`)
+- Optional `.do/app.yaml` for a repeatable app spec
+- Do **not** use DigitalOcean Managed DB for MVP — Snowflake already holds data
+- Stretch only: Spaces for media cache if Imagine ships
 
 ---
 
@@ -149,7 +156,7 @@ Med list, flagged pairs, short card text, disclaimer, “questions to ask.” Sa
 5. Grok cards + Cytoscape graph  
 6. Grok Voice read-aloud  
 7. Share-sheet PDF export  
-8. Seed demo meds + deploy to Vercel (with Snowflake env vars)  
+8. Seed demo meds + deploy to **DigitalOcean App Platform** (Snowflake + XAI env vars)  
 9. Stretch only after 1–8 work  
 
 If you finish 1–7, you have the full philanthropy / accessibility story for judges.
@@ -172,7 +179,7 @@ Useful endpoints:
 - xAI Voice: [Text to speech](https://docs.x.ai/developers/model-capabilities/audio/text-to-speech), [Speech to speech](https://docs.x.ai/developers/model-capabilities/audio/speech-to-speech)
 - xAI Imagine (stretch): [docs.x.ai Imagine](https://docs.x.ai/developers/model-capabilities/imagine)
 
-Environment (never commit; use `.env.local` / Vercel):
+Environment (never commit; use `.env.local` / DigitalOcean App Platform encrypted env vars):
 
 ```
 XAI_API_KEY=
@@ -185,6 +192,8 @@ SNOWFLAKE_DATABASE=
 SNOWFLAKE_SCHEMA=
 SNOWFLAKE_ROLE=               # optional
 ```
+
+DigitalOcean: [App Platform](https://docs.digitalocean.com/products/app-platform/) · [Next.js sample](https://docs.digitalocean.com/products/app-platform/getting-started/sample-apps/next.js/)
 
 ---
 

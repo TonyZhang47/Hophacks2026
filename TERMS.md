@@ -40,7 +40,7 @@ You are responsible for what you type, upload, or speak into the demo. Prefer sa
 RxPlain UI, code, and branding for this hackathon project are owned by the project authors except for third-party data, libraries, and model outputs subject to their licenses. Public datasets (RxNorm, openFDA, DDInter, etc.) remain subject to their providers’ terms.
 
 ## 8. Third-party services
-The app depends on third-party APIs, **Snowflake**, and hosting. Outages, rate limits, or policy changes at those providers may break features. We are not responsible for third-party availability or their handling of data beyond what we describe in the Privacy Policy.
+The app depends on third-party APIs, **Snowflake**, **DigitalOcean** (App Platform hosting), and related providers. Outages, rate limits, or policy changes at those providers may break features. We are not responsible for third-party availability or their handling of data beyond what we describe in the Privacy Policy.
 
 ## 9. Disclaimers
 TO THE MAXIMUM EXTENT PERMITTED BY LAW, RXPLAIN IS PROVIDED **“AS IS”** AND **“AS AVAILABLE,”** WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING ACCURACY, MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.

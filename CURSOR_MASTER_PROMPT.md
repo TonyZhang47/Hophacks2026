@@ -43,9 +43,10 @@ Implement end-to-end vertical slices. Prefer a working demo path over incomplete
 - **Voice (all of it):** **xAI Grok Voice** — English read-aloud, optional one timed prompt, optional live Q&A stretch
 - **Interaction graph:** **Cytoscape.js** from the same JSON as the cards (not Imagine)
 - **Share-sheet export:** client or server PDF from structured JSON (`@react-pdf/renderer` or `pdf-lib`) — labeled as a handout, not a medical record
-- **Hosting:** Vercel; secrets in `.env.local` / Vercel env
+- **Hosting:** **DigitalOcean App Platform** (GitHub → autodeploy). Secrets encrypted in App Platform env vars + local `.env.local`
+- **Optional DO extras (stretch only):** Spaces for cached Imagine assets; skip Droplets/Managed DB — Snowflake is the database
 
-**Do not use:** ElevenLabs, Scribe, DrugBank as a second severity source, Google Calendar OAuth, user auth / real patient DB, dual TTS routers, pronunciation maps, or Grok Imagine in MVP. Do not query Snowflake from the browser.
+**Do not use:** ElevenLabs, Scribe, DrugBank as a second severity source, Google Calendar OAuth, user auth / real patient DB, dual TTS routers, pronunciation maps, or Grok Imagine in MVP. Do not query Snowflake from the browser. Do not put secrets in `NEXT_PUBLIC_*`.
 
 ## Snowflake data model (keep small)
 
@@ -116,7 +117,7 @@ Do these in order; skip freely if time is short:
 
 ## Architecture
 ```
-Client (Next.js) — no DB credentials
+Client (Next.js on DigitalOcean App Platform) — no DB credentials
   → /api/meds/search          (RxNorm; write-through DRUG_CACHE in Snowflake)
   → /api/interactions/check   (Snowflake INTERACTIONS + openFDA + Grok rewrite; optional CARD_CACHE)
   → /api/tts                  (Grok Voice)
@@ -129,7 +130,9 @@ Stretch:
   → /api/imagine/explainer    (Grok Imagine, optional)
 ```
 
-All Snowflake access goes through Route Handlers + `lib/snowflake.ts`. No user accounts; no real PHI in `DEMO_SESSIONS`.
+**Infra split:** DigitalOcean hosts the app; Snowflake holds interaction data + caches. All Snowflake access goes through Route Handlers + `lib/snowflake.ts`. No user accounts; no real PHI in `DEMO_SESSIONS`.
+
+Deploy: connect the GitHub repo to **App Platform**, enable autodeploy from `main`, set encrypted env vars (XAI + Snowflake + openFDA). Optional `.do/app.yaml` for reproducible deploy.
 
 ## Env vars
 ```
@@ -154,7 +157,7 @@ Document in README + `.env.example`. Never commit secrets.
 5. Grok JSON cards + Cytoscape graph (optional `CARD_CACHE`).
 6. Grok Voice read-aloud (+ one timed prompt if easy).
 7. Share-sheet PDF export.
-8. Seed demo page (e.g. ibuprofen + warfarin) for judges; deploy to Vercel with Snowflake env vars.
+8. Seed demo page (e.g. ibuprofen + warfarin) for judges; deploy to **DigitalOcean App Platform** with Snowflake + XAI env vars.
 9. Stretch items only after 1–8 work.
 
 ## Acceptance criteria (first demo)
@@ -166,7 +169,8 @@ Document in README + `.env.example`. Never commit secrets.
 - Share-sheet PDF downloads with med list + flagged pairs + disclaimer.
 - Keyboard can complete the main path; focus states visible.
 - Interaction lookups go through `/api/*` → Snowflake (not client-side DB).
-- README: setup, env vars, Snowflake + Grok-only voice, philanthropy + accessibility focus.
+- App is reachable on a DigitalOcean App Platform URL for judges.
+- README: setup, env vars, DigitalOcean + Snowflake + Grok-only voice, philanthropy + accessibility focus.
 
 ## Out of scope for v1
 - ElevenLabs or any second TTS/STT vendor
@@ -182,9 +186,10 @@ Document in README + `.env.example`. Never commit secrets.
 ## Deliverables
 1. Runnable Next.js app branded **RxPlain**: MVP path against live RxNorm/openFDA + Snowflake-hosted DDInter.
 2. Modules: `lib/snowflake.ts`, `lib/rxnorm.ts`, `lib/openfda.ts`, `lib/interactions.ts`, `lib/llm.ts`, `lib/tts/grok.ts`, `lib/pdf.ts`.
-3. Short README + `.env.example` + Privacy Policy + Terms + SQL seed for `INTERACTIONS`.
+3. Short README + `.env.example` + Privacy Policy + Terms + SQL seed for `INTERACTIONS` + optional `.do/app.yaml`.
 4. Seed/demo meds if APIs are slow.
 5. App routes or pages for `/privacy` and `/terms` (footer linked).
+6. Live DigitalOcean App Platform deploy for the science-fair demo.
 
 Start by scaffolding Next.js, Snowflake connection + seeded `INTERACTIONS`, RxNorm search UI, and the interactions API. Then wire Grok rewrite and the graph. Add Grok Voice only after cards render from real data. PDF next. Stretch last.
 

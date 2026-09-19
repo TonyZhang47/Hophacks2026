@@ -42,7 +42,7 @@ RxPlain sends necessary request data to third parties to function:
 | openFDA | Label evidence snippets |
 | Snowflake | Server-side interaction store + caches (credentials never in the browser) |
 | xAI (Grok) | Plain-language rewrite, voice, optional vision/Imagine |
-| Hosting (e.g. Vercel) | App hosting |
+| DigitalOcean App Platform | Hosts the Next.js app |
 
 Those providers process data under their own terms and policies. Do not submit information you are not comfortable sharing with those services.
 
