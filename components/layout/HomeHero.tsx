@@ -69,7 +69,23 @@ export function HomeHero() {
       <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
         {/* Left: the former top half */}
         <div>
-          <h1>RxPlain</h1>
+          <h1>
+            <span className="relative inline-block">
+              RxPlain
+              <svg
+                viewBox="0 0 320 24"
+                preserveAspectRatio="none"
+                className="pointer-events-none absolute -bottom-3 left-0 h-4 w-full text-md-tertiary"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path
+                  fill="currentColor"
+                  d="M2 18 10 15 19 16 29 12 42 13 54 10 68 10 81 7 95 8 111 5 127 6 143 4 160 5 177 4 195 6 212 6 230 8 247 9 264 12 281 13 296 16 312 18 Q319 20 315 23 L300 22 284 19 268 18 251 15 234 14 216 12 197 11 179 10 161 10 143 10 125 11 107 11 90 13 73 13 57 15 42 16 28 18 17 19 8 21 2 20Z"
+                />
+              </svg>
+            </span>
+          </h1>
           <p className="hero-description !mx-0 !mb-3 !text-black">{t.desc}</p>
           <p className="hero-description !mx-0 !mt-0 !text-black">{t.blurb}</p>
           <div className="flex flex-wrap gap-3">
