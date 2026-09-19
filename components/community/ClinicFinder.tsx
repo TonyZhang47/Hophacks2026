@@ -271,7 +271,7 @@ export function ClinicFinder({ className = "", showHeader = true }: { className?
           <div className="flex flex-wrap gap-2">
             {FILTER_KEYS.map((f) => (
               <Chip key={f.key} selected={filters[f.key]} onClick={() => setFilters((s) => ({ ...s, [f.key]: !s[f.key] }))}>
-                {t[f.label]}
+                {t[f.label] as string}
               </Chip>
             ))}
           </div>
