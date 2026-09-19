@@ -1,0 +1,36 @@
+name: rxplain
+region: nyc
+services:
+  - name: web
+    github:
+      repo: TonyZhang47/Hophacks2026
+      branch: main
+      deploy_on_push: true
+    source_dir: /
+    environment_slug: node-js
+    build_command: npm ci && npm run build
+    run_command: npm run start
+    http_port: 8080
+    instance_count: 1
+    instance_size_slug: basic-xs
+    health_check:
+      http_path: /api/health
+      initial_delay_seconds: 20
+      period_seconds: 30
+    routes:
+      - path: /
+    envs:
+      - { key: XAI_API_KEY, scope: RUN_TIME, type: SECRET }
+      - { key: ELEVENLABS_API_KEY, scope: RUN_TIME, type: SECRET }
+      - { key: ELEVENLABS_VOICE_ID, scope: RUN_TIME }
+      - { key: OPENFDA_API_KEY, scope: RUN_TIME, type: SECRET }
+      - { key: SNOWFLAKE_ACCOUNT, scope: RUN_TIME, type: SECRET }
+      - { key: SNOWFLAKE_USERNAME, scope: RUN_TIME, type: SECRET }
+      - { key: SNOWFLAKE_PASSWORD, scope: RUN_TIME, type: SECRET }
+      - { key: SNOWFLAKE_PRIVATE_KEY_B64, scope: RUN_TIME, type: SECRET }
+      - { key: SNOWFLAKE_WAREHOUSE, scope: RUN_TIME }
+      - { key: SNOWFLAKE_DATABASE, scope: RUN_TIME }
+      - { key: SNOWFLAKE_SCHEMA, scope: RUN_TIME }
+      - { key: SNOWFLAKE_ROLE, scope: RUN_TIME }
+      - { key: CORTEX_SEARCH_SERVICE, scope: RUN_TIME, value: LABEL_SEARCH }
+      - { key: NODE_ENV, scope: RUN_AND_BUILD_TIME, value: production }

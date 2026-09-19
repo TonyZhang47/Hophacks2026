@@ -1,0 +1,5 @@
+[
+  { "clinic_id": "hrsa-demo-1", "name": "Tri-County Community Health Center", "site_type": "FQHC", "address": "412 Main St", "city": "Oakland", "state": "MD", "zip": "21550", "lat": 39.4076, "lon": -79.4067, "phone": "301-555-0142", "accepts_medicaid": true, "accepts_medicare": true, "sliding_fee": true, "source": "hrsa-demo" },
+  { "clinic_id": "cms-demo-1", "name": "Garrett Rural Health Clinic", "site_type": "RHC", "address": "20 Hospital Dr", "city": "Grantsville", "state": "MD", "zip": "21536", "lat": 39.6942, "lon": -79.1553, "phone": "301-555-0177", "accepts_medicaid": true, "accepts_medicare": true, "sliding_fee": false, "source": "cms-rhc-demo" },
+  { "clinic_id": "hrsa-demo-2", "name": "Allegany Family Health Center", "site_type": "LOOKALIKE", "address": "1050 Frederick St", "city": "Cumberland", "state": "MD", "zip": "21502", "lat": 39.6528, "lon": -78.7625, "phone": "301-555-0199", "accepts_medicaid": true, "accepts_medicare": true, "sliding_fee": true, "source": "hrsa-demo" }
+]

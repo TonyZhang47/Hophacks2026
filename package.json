@@ -1,0 +1,39 @@
+{
+  "name": "rxplain",
+  "version": "0.2.0",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 8080",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "seed:snowflake": "tsx scripts/seed-snowflake.ts"
+  },
+  "dependencies": {
+    "@react-pdf/renderer": "^4.3.0",
+    "cytoscape": "^3.33.0",
+    "lucide-react": "^0.559.0",
+    "next": "15.5.25",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "react-markdown": "^10.1.0",
+    "server-only": "^0.0.1",
+    "snowflake-sdk": "^2.3.0",
+    "zod": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/cytoscape": "^3.21.0",
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "autoprefixer": "^10.4.21",
+    "postcss": "^8.5.0",
+    "tailwindcss": "^3.4.19",
+    "tsx": "^4.20.0",
+    "typescript": "^5.7.0"
+  }
+}

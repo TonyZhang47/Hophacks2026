@@ -1,0 +1,22 @@
+[
+  { "ingredient_name": "metformin", "max_daily_mg": 2550, "max_daily_mg_per_kg": null, "route": "oral", "source": "fda_label", "notes": "Immediate-release adult maximum 2550 mg/day; extended-release 2000 mg/day." },
+  { "ingredient_name": "ibuprofen", "max_daily_mg": 3200, "max_daily_mg_per_kg": null, "route": "oral", "source": "fda_label", "notes": "Prescription maximum 3200 mg/day. OTC self-care maximum is 1200 mg/day (6 × 200 mg) unless directed by a doctor." },
+  { "ingredient_name": "acetaminophen", "max_daily_mg": 4000, "max_daily_mg_per_kg": null, "route": "oral", "source": "fda_label", "notes": "Adult maximum 4000 mg/day; many OTC labels cap at 3000 mg/day." },
+  { "ingredient_name": "naproxen", "max_daily_mg": 1500, "max_daily_mg_per_kg": null, "route": "oral", "source": "fda_label", "notes": "Prescription max 1500 mg/day; OTC naproxen sodium 660 mg/day." },
+  { "ingredient_name": "aspirin", "max_daily_mg": 4000, "max_daily_mg_per_kg": null, "route": "oral", "source": "fda_label", "notes": "Analgesic maximum 4000 mg/day; low-dose cardioprotective use is 81–325 mg/day." },
+  { "ingredient_name": "lisinopril", "max_daily_mg": 80, "max_daily_mg_per_kg": null, "route": "oral", "source": "fda_label", "notes": "Hypertension: up to 80 mg once daily." },
+  { "ingredient_name": "amlodipine", "max_daily_mg": 10, "max_daily_mg_per_kg": null, "route": "oral", "source": "fda_label", "notes": "Maximum 10 mg once daily." },
+  { "ingredient_name": "atorvastatin", "max_daily_mg": 80, "max_daily_mg_per_kg": null, "route": "oral", "source": "fda_label", "notes": "Range 10–80 mg once daily." },
+  { "ingredient_name": "simvastatin", "max_daily_mg": 40, "max_daily_mg_per_kg": null, "route": "oral", "source": "fda_label", "notes": "80 mg restricted to long-term tolerant patients; 20 mg cap with amlodipine." },
+  { "ingredient_name": "omeprazole", "max_daily_mg": 40, "max_daily_mg_per_kg": null, "route": "oral", "source": "fda_label", "notes": "Typical 20–40 mg daily; higher only for specific conditions." },
+  { "ingredient_name": "sertraline", "max_daily_mg": 200, "max_daily_mg_per_kg": null, "route": "oral", "source": "fda_label", "notes": "Maximum 200 mg once daily." },
+  { "ingredient_name": "levothyroxine", "max_daily_mg": null, "max_daily_mg_per_kg": null, "route": "oral", "source": "fda_label", "notes": "Dosed in micrograms and individualized by lab results; no fixed ceiling — cannot verify by ceiling check." },
+  { "ingredient_name": "warfarin", "max_daily_mg": null, "max_daily_mg_per_kg": null, "route": "oral", "source": "fda_label", "notes": "Individualized by INR; no fixed ceiling — cannot verify by ceiling check." },
+  { "ingredient_name": "prednisone", "max_daily_mg": null, "max_daily_mg_per_kg": null, "route": "oral", "source": "fda_label", "notes": "Highly condition-dependent (5–60 mg/day typical); no fixed ceiling." },
+  { "ingredient_name": "gabapentin", "max_daily_mg": 3600, "max_daily_mg_per_kg": null, "route": "oral", "source": "fda_label", "notes": "Maximum 3600 mg/day in divided doses." },
+  { "ingredient_name": "losartan", "max_daily_mg": 100, "max_daily_mg_per_kg": null, "route": "oral", "source": "fda_label", "notes": "Maximum 100 mg/day." },
+  { "ingredient_name": "hydrochlorothiazide", "max_daily_mg": 50, "max_daily_mg_per_kg": null, "route": "oral", "source": "fda_label", "notes": "Hypertension: 12.5–50 mg/day." },
+  { "ingredient_name": "cetirizine", "max_daily_mg": 10, "max_daily_mg_per_kg": null, "route": "oral", "source": "fda_label", "notes": "Adults: 10 mg once daily." },
+  { "ingredient_name": "loratadine", "max_daily_mg": 10, "max_daily_mg_per_kg": null, "route": "oral", "source": "fda_label", "notes": "Adults: 10 mg once daily." },
+  { "ingredient_name": "diphenhydramine", "max_daily_mg": 300, "max_daily_mg_per_kg": null, "route": "oral", "source": "fda_label", "notes": "OTC: 25–50 mg every 4–6 h, not more than 300 mg in 24 h." }
+]

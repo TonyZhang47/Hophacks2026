@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    font-size: 16px;
+  }
+  body {
+    @apply bg-md-background text-md-on-background font-sans text-body antialiased;
+  }
+  h1, h2, h3, h4 {
+    @apply font-medium tracking-tight;
+  }
+  :focus-visible {
+    @apply outline-none ring-2 ring-md-primary ring-offset-2 ring-offset-md-background;
+  }
+  ::selection {
+    @apply bg-md-secondary-container text-md-on-secondary-container;
+  }
+}
+
+@layer components {
+  .prose-md h1 { @apply text-headline mb-4 mt-8; }
+  .prose-md h2 { @apply text-title mb-3 mt-8; }
+  .prose-md h3 { @apply text-body font-medium mb-2 mt-6; }
+  .prose-md p, .prose-md li { @apply text-body mb-3 text-md-on-surface-variant; }
+  .prose-md ul { @apply list-disc pl-6 mb-4; }
+  .prose-md ol { @apply list-decimal pl-6 mb-4; }
+  .prose-md a { @apply text-md-primary underline underline-offset-4; }
+  .prose-md strong { @apply text-md-on-background font-medium; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+    transform: none !important;
+  }
+}
