@@ -3,6 +3,7 @@ import { isXaiConfigured } from "@/lib/env";
 import { error, json } from "@/lib/http";
 import { readImageText } from "@/lib/vision";
 import { parseDirectionsHeuristic } from "@/lib/dose/parse";
+import { formatOcrLabelText } from "@/lib/dose/ocrText";
 import { matchLabelToCatalog } from "@/lib/dose/matchLabel";
 
 export const runtime = "nodejs";
@@ -36,6 +37,7 @@ const PROMPT = [
   "1. The drug name and strength (for example: METFORMIN HCL 500 MG TABLET).",
   "2. The directions / sig line(s) (for example: TAKE 1 TABLET BY MOUTH TWICE DAILY WITH MEALS).",
   "Copy every number exactly. Do not add, change, round, or explain anything.",
+  "Use normal sentence capitalization, not all caps. Capitalize the first letter of each line and sentence.",
   "Do not include the patient name, prescriber, pharmacy, address, phone, Rx number, refills, or dates.",
   "Reply with plain text lines only, no labels, no markdown.",
   "If you cannot read the drug name or the directions clearly, reply with exactly: UNREADABLE",
@@ -82,7 +84,7 @@ export async function POST(req: Request) {
     .split(/\r?\n/)
     .map(cleanLine)
     .filter((l) => l && !/^unreadable$/i.test(l));
-  const text = lines.join("\n").trim();
+  const text = formatOcrLabelText(lines.join("\n"));
   console.info("[ocr] read label", { bytes: decoded, chars: text.length, lines: lines.length });
 
   if (/^\s*unreadable\b/i.test(raw) || text.length < 6) return error("unreadable", 422);
