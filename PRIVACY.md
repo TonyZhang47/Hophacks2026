@@ -1,6 +1,6 @@
 # Privacy Policy — RxPlain
 
-**Last updated:** September 18, 2026  
+**Last updated:** September 20, 2026  
 **Product:** RxPlain (HopHacks 2026 — Philanthropy track hackathon demo)
 
 This Privacy Policy explains what RxPlain does and does not collect. This is an educational hackathon project, not a commercial health product and not a HIPAA-covered entity.
@@ -20,10 +20,10 @@ RxPlain lets you search medications, view plain-language summaries grounded in p
 
 ### Information processed automatically
 - Basic technical logs needed to run the demo (e.g. request errors, rate-limit handling)
-- Server-side caches in **Snowflake** (drug lookup cache, interaction rows, optional anonymous session JSON) — no advertising IDs, precise location, or contact lists
+- Server-side caches (drug lookup, interaction rows, optional anonymous session JSON) — no advertising IDs, precise location, or contact lists
 
 ### Sensitive health information
-Medication lists can imply health status. Treat anything you enter as **sensitive**. Prefer sample or fictional meds during demos. Do not enter real patient identifiers (full legal name, MRN, address, phone, SSN, insurance ID). Do not store those identifiers in Snowflake.
+Medication lists can imply health status. Treat anything you enter as **sensitive**. Prefer sample or fictional meds during demos. Do not enter real patient identifiers (full legal name, MRN, address, phone, SSN, insurance ID).
 
 ## 4. How we use information
 - To look up drug names and interaction evidence (RxNorm, openFDA, DDInter)
@@ -40,16 +40,14 @@ RxPlain sends necessary request data to third parties to function:
 | --- | --- |
 | NLM RxNorm | Drug name search / normalization |
 | openFDA | Label evidence snippets |
-| Snowflake | Server-side interaction store + caches (credentials never in the browser) |
 | xAI (Grok) | Plain-language rewrite, voice, optional vision/Imagine |
-| DigitalOcean App Platform | Hosts the Next.js app |
 
 Those providers process data under their own terms and policies. Do not submit information you are not comfortable sharing with those services.
 
 ## 6. Storage and retention
-- Hackathon default: anonymous or local UI state plus optional Snowflake caches/sessions without login.
+- Hackathon default: anonymous or local UI state plus optional server-side caches/sessions without login.
 - Prescription photos: direct uploads are processed for the OCR request. Phone-paired photos are held temporarily in memory for transfer as described below; they are not saved to a photo library.
-- Snowflake: interaction seed data and caches; purge demo session rows after the event when practical.
+- Server-side caches: interaction seed data and lookup caches; purge demo session rows after the event when practical.
 - Server logs: keep only as long as needed for debugging during the event, then discard.
 - We do not operate a production patient database or user accounts.
 

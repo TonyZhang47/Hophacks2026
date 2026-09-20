@@ -69,6 +69,21 @@
   .prose-md strong {
     @apply text-md-on-background font-semibold;
   }
+  .prose-md table {
+    @apply w-full mb-6 text-left text-body border-collapse;
+  }
+  .prose-md thead {
+    @apply border-b border-md-outline;
+  }
+  .prose-md th {
+    @apply py-2 pr-4 font-semibold text-md-on-background;
+  }
+  .prose-md td {
+    @apply py-2 pr-4 text-md-on-surface-variant align-top;
+  }
+  .prose-md tbody tr {
+    @apply border-b border-md-outline;
+  }
   /* Plain-term replacements: dotted underline, original term in the tooltip */
   .plain-term {
     @apply underline decoration-dotted decoration-md-outline-strong underline-offset-4 cursor-help;

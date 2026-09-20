@@ -1,5 +1,6 @@
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 /** Map repo markdown files to app routes so in-page links actually navigate. */
 function legalHref(url: string): string {
@@ -20,6 +21,7 @@ function allowLegalUrl(url: string): string {
 export function LegalMarkdown({ children }: { children: string }) {
   return (
     <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
       urlTransform={allowLegalUrl}
       components={{
         a({ href, children: label, node: _node, ...props }) {
