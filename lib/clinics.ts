@@ -7,7 +7,14 @@ import type { ClinicResult, SiteType } from "@/lib/types";
  * the UI must always label them "by program rule". Nothing here is ever more precise than a ZIP centroid.
  */
 export const RADIUS_STEPS = [25, 50, 100] as const;
+export const MAX_CLINIC_RESULTS = 100;
 export const UNKNOWN_ZIP_MESSAGE = "We don't recognise that ZIP code.";
+
+/** More miles → more rows, so a 100-mile search is not truncated to the nearest ~35 miles. */
+export function clinicLimitForRadius(radiusMiles: number, requested?: number): number {
+  if (requested != null) return Math.min(Math.max(requested, 1), MAX_CLINIC_RESULTS);
+  return Math.min(MAX_CLINIC_RESULTS, Math.max(20, Math.round(radiusMiles)));
+}
 
 export interface FindClinicsInput {
   zip?: string;
@@ -35,7 +42,6 @@ export function isFindError(x: FindClinicsOutput | FindClinicsError): x is FindC
 export async function findClinics(input: FindClinicsInput): Promise<FindClinicsOutput | FindClinicsError> {
   const db = await getDb();
   const filters = input.filters ?? {};
-  const limit = Math.min(Math.max(input.limit ?? 20, 1), 50);
   let lat: number;
   let lon: number;
   let zip: string | undefined;
@@ -64,6 +70,7 @@ export async function findClinics(input: FindClinicsInput): Promise<FindClinicsO
   }
 
   const requested = input.radiusMiles && input.radiusMiles > 0 ? Math.min(input.radiusMiles, 100) : RADIUS_STEPS[0];
+  const limit = clinicLimitForRadius(requested, input.limit);
   const steps = [requested, ...RADIUS_STEPS.filter((r) => r > requested)];
   let results: ClinicResult[] = [];
   let radiusUsed = requested;

@@ -17,7 +17,7 @@ const Query = z
     lat: z.coerce.number().min(-90).max(90).optional(),
     lon: z.coerce.number().min(-180).max(180).optional(),
     radiusMiles: z.coerce.number().min(1).max(100).optional(),
-    limit: z.coerce.number().int().min(1).max(50).optional(),
+    limit: z.coerce.number().int().min(1).max(100).optional(),
     medicaid: flag,
     medicare: flag,
     slidingFee: flag,

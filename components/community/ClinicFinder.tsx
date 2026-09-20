@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useId, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { LocateFixed, MapPin, Phone, Search } from "lucide-react";
 import { useLang, type Lang } from "@/components/LanguageContext";
 import { Button } from "@/components/ui/Button";
@@ -48,6 +48,8 @@ const T = {
     none: "No clinics within 100 miles.",
     clinicsWithin: (n: number, miles: number) =>
       `${n} ${n === 1 ? "clinic" : "clinics"} within ${miles} miles, closest first.`,
+    farthestShown: (miles: number) => ` Farthest shown: ${miles} miles.`,
+    showingClosest: "Listed sites from HRSA health-center and CMS rural health clinic directories.",
     widened: (miles: number) => ` Widened to ${miles} miles.`,
     empty:
       "We couldn't find a listed clinic within 100 miles of that ZIP. Try fewer filters, or search the national directory at",
@@ -90,6 +92,8 @@ const T = {
     none: "No hay clínicas a menos de 100 millas.",
     clinicsWithin: (n: number, miles: number) =>
       `${n} ${n === 1 ? "clínica" : "clínicas"} a ${miles} millas, la más cercana primero.`,
+    farthestShown: (miles: number) => ` La más lejana mostrada: ${miles} millas.`,
+    showingClosest: "Sitios listados en los directorios de centros de salud de HRSA y clínicas rurales de CMS.",
     widened: (miles: number) => ` Se amplió a ${miles} millas.`,
     empty:
       "No encontramos una clínica listada a menos de 100 millas de ese código postal. Pruebe con menos filtros o busque en el directorio nacional en",
@@ -160,6 +164,7 @@ export function ClinicFinder({ className = "", showHeader = true }: { className?
   const [message, setMessage] = useState<string>("");
   const [data, setData] = useState<NearResponse | null>(null);
   const ids = useId();
+  const lastWhere = useRef<{ zip?: string; lat?: number; lon?: number } | null>(null);
 
   useEffect(() => {
     try {
@@ -170,6 +175,7 @@ export function ClinicFinder({ className = "", showHeader = true }: { className?
 
   const search = useCallback(
     async (where: { zip?: string; lat?: number; lon?: number }) => {
+      lastWhere.current = where;
       setStatus("loading");
       setMessage("");
       const params = new URLSearchParams();
@@ -198,6 +204,14 @@ export function ClinicFinder({ className = "", showHeader = true }: { className?
     },
     [filters, radius, t],
   );
+
+  useEffect(() => {
+    if (!lastWhere.current) return;
+    const timer = setTimeout(() => {
+      if (lastWhere.current) void search(lastWhere.current);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [radius, search]);
 
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -322,9 +336,16 @@ export function ClinicFinder({ className = "", showHeader = true }: { className?
         {status === "done" && data && (
           <>
             <p className="text-meta text-md-on-surface-variant">
-              {results.length === 0 ? t.none : t.clinicsWithin(results.length, data.radiusUsed)}
+              {results.length === 0
+                ? t.none
+                : `${t.clinicsWithin(results.length, data.radiusUsed)}${
+                    results.length ? t.farthestShown(results[results.length - 1].distanceMiles) : ""
+                  }`}
               {data.widened && results.length > 0 && t.widened(data.radiusUsed)}
             </p>
+            {results.length > 0 && (
+              <p className="text-meta text-md-on-surface-variant">{t.showingClosest}</p>
+            )}
             {results.length === 0 ? (
               <Card dense>
                 <p className="text-body">
