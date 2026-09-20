@@ -40,6 +40,7 @@ async function main() {
     ["1-2 tablets every 6 to 8 hours", { timesPerDay: null, howOftenText: "every 6 to 8 hours" }],
     // Typical scanned pharmacy-label lines (uppercase, salt + form words).
     ["TAKE 1 TABLET BY MOUTH TWICE DAILY WITH MEALS", { unitsPerDose: 1, timesPerDay: 2, withFood: true, unitLabel: "tablet", route: "oral", drugName: "" }],
+    ["APPLY TOPICALLY TWO (2) TIMES DAILY. AS NEEDED FOR SPOT TREATMENT", { timesPerDay: 2, asNeeded: true, route: "topical" }],
     ["METFORMIN HCL 500 MG TABLET", { drugName: "metformin", strengthMg: 500, unitLabel: "tablet" }],
     ["METFORMIN HCL 500 MG TABLET\nTAKE 1 TABLET BY MOUTH TWICE DAILY WITH MEALS".replace("\n", ", "), { drugName: "metformin", strengthMg: 500, unitsPerDose: 1, timesPerDay: 2, withFood: true }],
   ];

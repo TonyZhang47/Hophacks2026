@@ -113,7 +113,7 @@ export function parseHowOftenText(text: string): string {
     new RegExp(String.raw`\b${NUM_TOKEN}\s*${RANGE_SEP}\s*${NUM_TOKEN}\s*(?:x|times?)\s*(?:a|per|each|every|/)?\s*(?:day|daily|d)\b`, "i"),
     new RegExp(String.raw`\bevery\s+${NUM_TOKEN}\s*(?:hours?|hrs?|h)\b`, "i"),
     /\bq\s*\d+\s*(?:h|hrs?|hours?)\b/i,
-    new RegExp(String.raw`\b${NUM_TOKEN}\s*(?:x|times?)\s*(?:a|per|each|every|/)?\s*(?:day|daily|d)\b`, "i"),
+    new RegExp(String.raw`\b${NUM_TOKEN}(?:\s*\(\s*${NUM_TOKEN}\s*\))?\s*(?:x|times?)\s*(?:a|per|each|every|/)?\s*(?:day|daily|d)\b`, "i"),
     /\b(?:once|twice|three times|four times)\s+(?:a|per|each|every)\s+(?:day|daily)\b/i,
     /\b(?:once|twice|three times|four times)\s+daily\b/i,
     /\b(?:once a day|twice a day|once daily|twice daily|at bedtime|every morning|every night|nightly)\b/i,
@@ -141,8 +141,9 @@ function parseTimesPerDay(text: string): number | null {
     if (n && n > 0 && n <= 24) return Math.max(1, Math.floor(24 / n));
   }
 
-  // N times a/per/each day, N times daily, Nx a day, Nx/day
-  m = t.match(new RegExp(String.raw`\b${NUM_TOKEN}\s*(?:x|times?)\s*(?:a|per|each|every|/)?\s*(?:day|daily|d)\b`));
+  // N times a/per/each day, N times daily, Nx a day, Nx/day.
+  // Pharmacy labels often print "TWO (2) TIMES DAILY".
+  m = t.match(new RegExp(String.raw`\b${NUM_TOKEN}(?:\s*\(\s*${NUM_TOKEN}\s*\))?\s*(?:x|times?)\s*(?:a|per|each|every|/)?\s*(?:day|daily|d)\b`));
   if (m) {
     const n = toNum(m[1]);
     if (n && n > 0) return n;
@@ -150,9 +151,9 @@ function parseTimesPerDay(text: string): number | null {
 
   if (/\b(?:once|one time|1 time)\s+(?:a|per|each|every)\s+day\b|\bonce daily\b|\bonce a day\b|\bqd\b|\bq\.?d\.?\b|\bdaily\b|\bevery day\b|\beach day\b|\bevery morning\b|\bevery night\b|\bnightly\b|\bat bedtime\b|\bbedtime\b|\bqhs\b|\bq\.?h\.?s\.?\b|\bin the morning\b/.test(t)) {
     // "twice daily" contains "daily" — check the stronger words first.
-    if (/\btwice\b|\bbid\b|\bb\.i\.d\.?\b|\b2 times\b|\btwo times\b/.test(t)) return 2;
-    if (/\bthree times\b|\btid\b|\bt\.i\.d\.?\b|\b3 times\b/.test(t)) return 3;
-    if (/\bfour times\b|\bqid\b|\bq\.i\.d\.?\b|\b4 times\b/.test(t)) return 4;
+    if (/\btwice\b|\bbid\b|\bb\.i\.d\.?\b|\b2(?:\s*\(\s*\d+\s*\))?\s+times\b|\btwo(?:\s*\(\s*\d+\s*\))?\s+times\b/.test(t)) return 2;
+    if (/\bthree(?:\s*\(\s*\d+\s*\))?\s+times\b|\btid\b|\bt\.i\.d\.?\b|\b3(?:\s*\(\s*\d+\s*\))?\s+times\b/.test(t)) return 3;
+    if (/\bfour(?:\s*\(\s*\d+\s*\))?\s+times\b|\bqid\b|\bq\.i\.d\.?\b|\b4(?:\s*\(\s*\d+\s*\))?\s+times\b/.test(t)) return 4;
     // "in the morning and at night" → 2
     if (/\b(?:morning|breakfast)\b/.test(t) && /\b(?:evening|night|bedtime|dinner|supper)\b/.test(t)) return 2;
     return 1;

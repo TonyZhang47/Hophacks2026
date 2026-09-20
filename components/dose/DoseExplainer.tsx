@@ -79,7 +79,6 @@ const T = {
     calendarTimes: "Times",
     addTime: "Add a time",
     removeTime: "Remove time",
-    slotsHint: (n: number) => `${n} time${n === 1 ? "" : "s"} a day from your directions — adjust as needed.`,
     calendarRepeat: "Repeat daily until",
     calendarRepeatHint: "Leave as today for a single day.",
     calendarNote: "Optional note",
@@ -156,7 +155,6 @@ const T = {
     calendarTimes: "Horarios",
     addTime: "Agregar horario",
     removeTime: "Quitar horario",
-    slotsHint: (n: number) => `${n} ${n === 1 ? "vez" : "veces"} al día según sus indicaciones — ajuste si hace falta.`,
     calendarRepeat: "Repetir a diario hasta",
     calendarRepeatHint: "Deje la fecha de hoy para un solo día.",
     calendarNote: "Nota opcional",
@@ -690,10 +688,7 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
                     </div>
                   ))}
                 </div>
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-meta text-md-on-surface-variant">
-                    {input?.timesPerDay ? t.slotsHint(input.timesPerDay) : ""}
-                  </p>
+                <div className="flex items-center justify-end">
                   <Button
                     variant="text"
                     size="sm"
