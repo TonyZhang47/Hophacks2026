@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Clock, Info, ShieldAlert } from "lucide-react";
 import { useLang } from "@/components/LanguageContext";
 import { ScanBottle, type ScanHint } from "@/components/dose/ScanBottle";
@@ -99,13 +99,6 @@ const T = {
     searching: "Searching…",
     noSearchHits: "Nothing found with that name.",
     proposed: "Proposed match",
-    fromBottle: "From your bottle",
-    fromLabel: "From the official label",
-    officialFor: (name: string) => `From the official label for ${name}:`,
-    openFdaSource: "Source: openFDA drug label, dosage and administration section.",
-    loadingLabel: "Looking up the official label…",
-    noLabelYet: "No official dosage text on file for this medicine yet.",
-    labelLookupError: "We could not reach the official label just now.",
   },
   es: {
     heading: "Cuánto y cuándo",
@@ -178,13 +171,6 @@ const T = {
     searching: "Buscando…",
     noSearchHits: "No encontramos nada con ese nombre.",
     proposed: "Coincidencia propuesta",
-    fromBottle: "De su frasco",
-    fromLabel: "De la etiqueta oficial",
-    officialFor: (name: string) => `De la etiqueta oficial de ${name}:`,
-    openFdaSource: "Fuente: etiqueta de medicamentos de openFDA, sección de posología y administración.",
-    loadingLabel: "Buscando la etiqueta oficial…",
-    noLabelYet: "Aún no hay texto oficial de posología para este medicamento.",
-    labelLookupError: "No pudimos consultar la etiqueta oficial ahora.",
   },
 } as const;
 
@@ -300,7 +286,6 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
   const [scanDrugName, setScanDrugName] = useState("");
   const [pickingOther, setPickingOther] = useState(false);
   const [matchFlow, setMatchFlow] = useState(false);
-  const scanTextRef = useRef("");
 
   const selectedMed = useMemo(() => meds.find((m) => m.rxcui === medChoice) ?? null, [meds, medChoice]);
   const hasPicker = meds.length > 0;
@@ -357,7 +342,6 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
       .join(", ")
       .slice(0, MAX_DIRECTIONS);
     const drug = hint?.drugName?.trim() ?? "";
-    scanTextRef.current = joined;
     setText(joined);
     setScanMatch(hint?.match ?? null);
     setScanCandidates(hint?.candidates ?? []);
@@ -379,23 +363,22 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
 
   function applyConfirmedMed(med: Med | null) {
     const lock = { failPhase: "match" as const, lockRxcui: true };
-    const directions = (text.trim() || scanTextRef.current).slice(0, MAX_DIRECTIONS);
     if (med?.rxcui) {
       const listed = meds.find((m) => m.rxcui === med.rxcui) ?? matchMed(meds, med.name);
       if (listed) {
         setMedChoice(listed.rxcui);
-        void readBack(directions, listed, lock);
+        void readBack(text, listed, lock);
         return;
       }
       setMedChoice(OTHER);
       setOtherName(displayName(med));
-      void readBack(directions, med, lock);
+      void readBack(text, med, lock);
       return;
     }
     setMedChoice(OTHER);
     const name = capitalize((med?.name || scanDrugName || otherName).trim());
     setOtherName(name);
-    void readBack(directions, name ? { name, rxcui: "" } : undefined, lock);
+    void readBack(text, name ? { name, rxcui: "" } : undefined, lock);
   }
 
   async function checkIt() {
@@ -448,7 +431,6 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
     setScanDrugName("");
     setPickingOther(false);
     setMatchFlow(false);
-    scanTextRef.current = "";
   }
 
   const busy = phase === "parsing" || phase === "checking";
@@ -469,11 +451,6 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
         ? displayName({ name: input.drugName, rxcui: input.rxcui })
         : t.notNamed
     : "";
-  const officialSpeech =
-    phase === "done" && result?.labelQuotes.length
-      ? [t.officialFor(confirmMedName), ...result.labelQuotes.map((q) => q.text), t.openFdaSource].join(" ")
-      : "";
-  const spoken = [speech, officialSpeech].filter(Boolean).join(" ");
 
   return (
     <Panel aria-label={t.heading}>
@@ -486,19 +463,14 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
             size="sm"
             variant="outlined"
             label={t.listen}
-            text={spoken}
+            text={speech}
             getText={() =>
-              [
-                speechFor(
-                  phase === "done" ? result : null,
-                  phase === "confirm" || phase === "checking" ? input : null,
-                  t,
-                  matchSpeechName,
-                ),
-                officialSpeech,
-              ]
-                .filter(Boolean)
-                .join(" ")
+              speechFor(
+                phase === "done" ? result : null,
+                phase === "confirm" || phase === "checking" ? input : null,
+                t,
+                matchSpeechName,
+              )
             }
           />
         }
@@ -627,7 +599,6 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
             <h3 id={`${id}-confirm`} className="eyebrow">
               {t.isThisRight}
             </h3>
-            <p className="text-meta text-md-on-surface-variant">{matchFlow ? t.fromBottle : t.youWrote}</p>
             <div>
               <KeyValue k={t.medicine} v={confirmMedName} />
               <KeyValue k={t.strength} v={input.strengthMg != null ? `${input.strengthMg} mg` : t.notSaid} />
@@ -644,7 +615,7 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
               <KeyValue k={t.asNeeded} v={input.asNeeded ? t.yes : t.no} />
             </div>
             <p className="text-meta text-md-on-surface-variant">
-              {matchFlow ? t.fromBottle : t.youWrote}: “{input.userText}”
+              {t.youWrote}: “{input.userText}”
             </p>
             <label className="flex items-start gap-2 text-label">
               <input
@@ -750,11 +721,7 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
         <div aria-live="polite" aria-atomic="true" className="space-y-3">
           {phase === "done" && result && (
             <>
-              {result.status === "consistent" ? (
-                <ConsistentWell result={result} lang={lang} name={confirmMedName} />
-              ) : (
-                <FailClosedWell result={result} lang={lang} name={confirmMedName} />
-              )}
+              {result.status === "consistent" ? <ConsistentWell result={result} lang={lang} /> : <FailClosedWell result={result} lang={lang} />}
               {calMsg && (
                 <p role="status" className="text-meta text-md-on-surface-variant">
                   {calMsg}
@@ -776,7 +743,7 @@ export function DoseExplainer({ meds, onResult }: DoseExplainerProps) {
   );
 }
 
-function ConsistentWell({ result, lang, name }: { result: DoseResult; lang: "en" | "es"; name: string }) {
+function ConsistentWell({ result, lang }: { result: DoseResult; lang: "en" | "es" }) {
   const t = T[lang];
   return (
     <article className="bg-md-surface-container-low rounded-xl p-4 space-y-4" aria-label={t.yourDirections}>
@@ -802,12 +769,7 @@ function ConsistentWell({ result, lang, name }: { result: DoseResult; lang: "en"
           <PlainText as="p" className="text-body" text={result.askYourPharmacist} />
         </div>
       )}
-      <OfficialLabelCard
-        lang={lang}
-        name={name}
-        quotes={result.labelQuotes}
-        status={result.labelQuotes.length ? "ready" : "empty"}
-      />
+      <Evidence quotes={result.labelQuotes} title={t.whereFrom} />
       <p className="text-meta text-md-on-surface-variant">{t.meta(result.ceilingChecked)}</p>
     </article>
   );
@@ -817,7 +779,7 @@ function ConsistentWell({ result, lang, name }: { result: DoseResult; lang: "en"
  * Fail-closed well. Deliberately renders nothing from the input and no dose line:
  * only the reason (digit-free), a question, and the label text as evidence.
  */
-function FailClosedWell({ result, lang, name }: { result: DoseResult; lang: "en" | "es"; name: string }) {
+function FailClosedWell({ result, lang }: { result: DoseResult; lang: "en" | "es" }) {
   const t = T[lang];
   const reason = noDigits(result.reason ?? "", "reason");
   const ask = noDigits(result.askYourPharmacist ?? "", "askYourPharmacist");
@@ -836,58 +798,29 @@ function FailClosedWell({ result, lang, name }: { result: DoseResult; lang: "en"
           <p className="text-body">{ask}</p>
         </div>
       )}
-      <OfficialLabelCard
-        lang={lang}
-        name={name}
-        quotes={result.labelQuotes}
-        status={result.labelQuotes.length ? "ready" : "empty"}
-      />
+      <Evidence quotes={result.labelQuotes} title={t.evidence} open />
     </article>
   );
 }
 
-function stripSectionHeader(text: string) {
-  return text.replace(/^\s*dosage and administration\s*[:.]?\s*/i, "").trim();
-}
-
-function OfficialLabelCard({
-  lang,
-  name,
-  quotes,
-  status,
-}: {
-  lang: "en" | "es";
-  name: string;
-  quotes: { chunkId: string; text: string }[];
-  status: "idle" | "loading" | "ready" | "empty" | "error";
-}) {
-  const t = T[lang];
-  if (status === "idle") return null;
+function Evidence({ quotes, title, open }: { quotes: DoseResult["labelQuotes"]; title: string; open?: boolean }) {
+  if (!quotes.length) return null;
   return (
-    <div className="rounded-lg bg-md-surface-container border border-md-outline px-4 py-3 space-y-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h4 className="eyebrow">{t.fromLabel}</h4>
-        <p className="text-meta text-md-tertiary">openFDA</p>
-      </div>
-      {status === "loading" && <p className="text-meta text-md-on-surface-variant">{t.loadingLabel}</p>}
-      {status === "ready" && (
-        <>
-          <p className="text-body text-md-on-surface-variant">{t.officialFor(name)}</p>
-          <ul className="space-y-3">
-            {quotes.map((q) => (
-              <li key={q.chunkId} className="text-body text-md-on-background">
-                <blockquote className="border-l-4 border-md-tertiary pl-3">
-                  <PlainText text={stripSectionHeader(q.text)} />
-                </blockquote>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-      {status === "empty" && <p className="text-body text-md-on-surface-variant">{t.noLabelYet}</p>}
-      {status === "error" && <p className="text-body text-md-error">{t.labelLookupError}</p>}
-      <p className="text-meta text-md-on-surface-variant">{t.openFdaSource}</p>
-    </div>
+    <details className="rounded-lg border border-md-outline bg-md-surface-container px-4 py-2 group" open={open}>
+      <summary className="cursor-pointer text-label text-md-on-background rounded-full focus-visible:ring-2 focus-visible:ring-md-primary focus-visible:ring-offset-2 py-1">
+        {title}
+      </summary>
+      <ul className="mt-3 space-y-3">
+        {quotes.map((q) => (
+          <li key={q.chunkId} className="text-body text-md-on-surface-variant">
+            <blockquote className="border-l-4 border-md-outline pl-3">
+              “<PlainText text={q.text} />”
+            </blockquote>
+            <p className="text-meta mt-1">{q.chunkId}</p>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }
 

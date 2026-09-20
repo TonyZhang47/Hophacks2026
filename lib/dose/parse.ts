@@ -14,7 +14,6 @@ import { z } from "zod";
 import { isXaiConfigured } from "@/lib/env";
 import type { DoseInput, Med } from "@/lib/types";
 import { extractNumbers } from "@/lib/dose/guardrails";
-import { formatOcrLabelText } from "@/lib/dose/ocrText";
 
 export const DoseInputSchema = z.object({
   drugName: z.string().default(""),
@@ -122,7 +121,7 @@ export function parseHowOftenText(text: string): string {
   ];
   for (const re of patterns) {
     const m = text.match(re);
-    if (m) return formatOcrLabelText(m[0].replace(/\s+/g, " "));
+    if (m) return m[0].replace(/\s+/g, " ").trim();
   }
   return "";
 }
@@ -202,13 +201,13 @@ function parseDrugName(text: string): string {
     if (name.length >= 3) break;
   }
   // Drop trailing salt/form words that are not part of a search name.
-  while (name.length && /^(?:hydrochloride|hcl|sodium|phosphate|ph|besylate|mesylate|tablet|tablets|capsule|capsules|er|xr|sr)$/i.test(name[name.length - 1])) name.pop();
+  while (name.length && /^(?:hydrochloride|hcl|sodium|tablet|tablets|capsule|capsules|er|xr|sr)$/i.test(name[name.length - 1])) name.pop();
   return name.join(" ").toLowerCase();
 }
 
 /** Deterministic parse. Never throws. */
 export function parseDirectionsHeuristic(text: string, medHint?: MedHint): DoseInput {
-  const userText = formatOcrLabelText(text.trim()) || text.trim();
+  const userText = text.trim();
   const strengthMg = parseStrength(userText);
   const u = parseUnits(userText);
   const timesPerDay = parseTimesPerDay(userText);
@@ -291,7 +290,7 @@ export function mergeParses(regex: DoseInput, llm: DoseInput, text: string): Par
 
   if (!out.howOftenText && llm.howOftenText) {
     const phrase = llm.howOftenText.replace(/\s+/g, " ").trim();
-    if (phrase && text.toLowerCase().includes(phrase.toLowerCase())) out.howOftenText = formatOcrLabelText(phrase);
+    if (phrase && text.toLowerCase().includes(phrase.toLowerCase())) out.howOftenText = phrase;
   }
   if (hasFrequencyRange(text)) {
     if (out.timesPerDay != null) notes.push(`timesPerDay: cleared ${out.timesPerDay} because the bottle printed a range`);
