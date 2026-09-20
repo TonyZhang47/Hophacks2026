@@ -34,13 +34,13 @@ You agree not to:
 - Misrepresent RxPlain outputs as professional medical advice or official FDA guidance
 
 ## 6. Your inputs
-You are responsible for what you type, upload, or speak into the demo. Prefer sample medications for testing. See the [Privacy Policy](PRIVACY.md) for how inputs may be processed.
+You are responsible for what you type, upload, or speak into the demo. Prefer sample medications for testing. See the [Privacy Policy](/privacy) for how inputs may be processed.
 
 ## 7. Intellectual property
 RxPlain UI, code, and branding for this hackathon project are owned by the project authors except for third-party data, libraries, and model outputs subject to their licenses. Public datasets (RxNorm, openFDA, DDInter, etc.) remain subject to their providers’ terms.
 
 ## 8. Third-party services
-The app depends on third-party APIs, **Snowflake**, **DigitalOcean** (App Platform hosting), and related providers. Outages, rate limits, or policy changes at those providers may break features. We are not responsible for third-party availability or their handling of data beyond what we describe in the Privacy Policy.
+The app depends on third-party APIs, **Snowflake**, **DigitalOcean** (App Platform hosting), and related providers. Outages, rate limits, or policy changes at those providers may break features. We are not responsible for third-party availability or their handling of data beyond what we describe in the [Privacy Policy](/privacy).
 
 ## 9. Disclaimers
 TO THE MAXIMUM EXTENT PERMITTED BY LAW, RXPLAIN IS PROVIDED **“AS IS”** AND **“AS AVAILABLE,”** WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING ACCURACY, MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT.
@@ -52,7 +52,7 @@ TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE AUTHORS AND AFFILIATED HACKATHON ORG
 You agree to indemnify and hold harmless the RxPlain authors from claims arising from your misuse of the demo, your violation of these Terms, or your reliance on outputs as medical advice.
 
 ## 12. Privacy
-Use of RxPlain is also governed by the [Privacy Policy](PRIVACY.md).
+Use of RxPlain is also governed by the [Privacy Policy](/privacy).
 
 ## 13. Changes
 We may update these Terms during or after the hackathon. Continued use after changes means you accept the updated Terms.
