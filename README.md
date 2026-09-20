@@ -14,7 +14,7 @@ All of us have parents or grandparents whose English isn't strong. A bottle come
 **Home** (`/`) — A short introduction and four entry points: My medicines, Calendar, Clinics, Community.
 
 **Meds** (`/meds`)
-- **My medicines.** Click the search box to browse the full medicine list or type to filter by generic or brand name. Add up to 10.
+- **My medicines.** Click the search box to browse the full medicine list or type the drug name. Add up to 10.
 - **The food connection.** Check what foods and drinks matter for each medicine you added. The guide is built from MedlinePlus and FDA pages and covers 70+ common medicines. Each result shows a level in words (Major, Moderate, Minor, Unknown), an explanation, guidance, and a link to the source. A medicine with no entry says so explicitly rather than implying it is safe.
 - **How much and when.** Type the directions from your bottle, or scan it: live camera preview, a chosen photo, or a phone linked by QR code (`/capture`). RxPlain parses the directions, shows them back for confirmation, then restates them in plain words and checks them against the official FDA label. Every number shown must already appear on your bottle or in the quoted label text. If the directions exceed the label's daily maximum or can't be verified, it fails closed with a "check with your pharmacist" card that contains no numbers.
 - **Add to calendar.** From a confirmed dose, add one time slot per daily dose, repeating until a date you pick.

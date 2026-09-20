@@ -3,8 +3,8 @@ import type { Med } from "@/lib/types";
 
 /**
  * Client-safe helpers over the bundled medicine list: one row per ingredient (generic
- * entry preferred), instant filtering by generic OR brand alias, and a merge step for
- * live RxNorm results. Used by the Meds search and the Community picker.
+ * entry preferred). My medicines filters by generic/ingredient only; brand-alias
+ * matching stays available for OCR via filterCommon.
  */
 const ALL = commonMeds as Med[];
 
@@ -22,6 +22,67 @@ export const GENERIC_OPTIONS: Med[] = (() => {
 
 export function normalizeQuery(s: string) {
   return s.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function ingredientName(med: Med): string {
+  return (med.ingredientName ?? "").toLowerCase();
+}
+
+function tokensMatch(haystack: string, needle: string): boolean {
+  if (!haystack || !needle) return false;
+  return haystack.startsWith(needle) || haystack.split(/\s+/).some((w) => w.startsWith(needle)) || haystack.includes(needle);
+}
+
+/**
+ * Names that count as the actual drug: ingredient, parenthetical generic, and
+ * (for bundled generic rows) the display name including "Vitamin D3".
+ * Brand prefixes like "Advil" in "Advil (ibuprofen)" are excluded.
+ */
+function actualDrugNames(med: Med, includeGenericDisplay: boolean): string[] {
+  const ing = ingredientName(med);
+  const m = med.name.match(/^(.+?)\s*\((.+)\)$/);
+  const names = new Set<string>();
+  if (ing) names.add(ing);
+  if (m) {
+    names.add(normalizeQuery(m[2]));
+    if (includeGenericDisplay) names.add(normalizeQuery(m[1]));
+  } else {
+    const bare = normalizeQuery(med.name);
+    if (!ing || bare === ing || includeGenericDisplay) names.add(bare);
+  }
+  return [...names].filter(Boolean);
+}
+
+/** True when the typed query appears in the generic or ingredient name (not a brand alias). */
+export function queryMatchesGeneric(q: string, med: Med): boolean {
+  const needle = normalizeQuery(q);
+  if (!needle) return true;
+  return actualDrugNames(med, false).some((n) => tokensMatch(n, needle));
+}
+
+function rankGeneric(needle: string, med: Med): number {
+  const names = actualDrugNames(med, true);
+  if (names.some((n) => n.startsWith(needle))) return 0;
+  if (names.some((n) => n.split(/\s+/).some((w) => w.startsWith(needle)))) return 1;
+  if (names.some((n) => n.includes(needle))) return 2;
+  return -1;
+}
+
+/**
+ * My medicines: match generic/ingredient names only. Typing a brand (e.g. Advil)
+ * does not list the ingredient. Empty query → the full alphabetical list.
+ */
+export function filterGenericOnly(q: string): Med[] {
+  const needle = normalizeQuery(q);
+  if (!needle) return GENERIC_OPTIONS;
+  return GENERIC_OPTIONS.map((m) => ({ m, score: rankGeneric(needle, m) }))
+    .filter((x) => x.score >= 0)
+    .sort(
+      (a, b) =>
+        a.score - b.score ||
+        (a.m.ingredientName || a.m.name).localeCompare(b.m.ingredientName || b.m.name),
+    )
+    .map((x) => x.m);
 }
 
 /**
@@ -60,4 +121,13 @@ export function mergeLive(local: Med[], live: Med[], max = 8): Med[] {
     if (++extra >= max) break;
   }
   return out;
+}
+
+/** Live RxNorm hits whose generic/ingredient contains the typed query (drops brand→generic mapping). */
+export function mergeLiveGeneric(local: Med[], live: Med[], q: string, max = 8): Med[] {
+  return mergeLive(
+    local,
+    live.filter((m) => queryMatchesGeneric(q, m)),
+    max,
+  );
 }

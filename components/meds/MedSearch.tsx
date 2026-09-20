@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
-import { filterCommon, mergeLive, GENERIC_OPTIONS } from "@/lib/medOptions";
+import { filterGenericOnly, mergeLiveGeneric, GENERIC_OPTIONS } from "@/lib/medOptions";
 import { Search } from "lucide-react";
 import { TextField } from "@/components/ui/TextField";
 import { useLang } from "@/components/LanguageContext";
@@ -19,9 +19,10 @@ const LIVE_MIN_CHARS = 3;
 const LIVE_WHEN_FEWER_THAN = 3;
 
 /**
- * Medicine picker. Clicking the field opens the full, scrollable list; typing filters it
- * instantly (generic or brand name), and a live RxNorm lookup fills in anything the
- * bundled list does not know. Keyboard: up/down/enter/escape, aria-activedescendant.
+ * Medicine picker. Clicking the field opens the full, scrollable list; typing filters by
+ * the actual drug (generic/ingredient) name. A live RxNorm lookup fills in drugs the
+ * bundled list does not know, still requiring the typed query to appear in the generic name.
+ * Keyboard: up/down/enter/escape, aria-activedescendant.
  */
 export function MedSearch({ meds, onAdd, max = 10 }: MedSearchProps) {
   const { lang } = useLang();
@@ -42,11 +43,11 @@ export function MedSearch({ meds, onAdd, max = 10 }: MedSearchProps) {
   const t =
     lang === "es"
       ? {
-          label: "Busque un medicamento",
-          placeholder: "Nombre o marca, p. ej. metformina o Advil",
+          label: "Nombre del medicamento",
+          placeholder: "Nombre del medicamento, p. ej. metformina",
           hint: full
             ? `Ya tiene ${max} medicamentos, el máximo.`
-            : "Haga clic para ver la lista, o escriba para filtrar. Agregue de 1 a 10 medicamentos.",
+            : "Haga clic para ver la lista, o escriba el medicamento. Agregue de 1 a 10.",
           none: "No encontramos nada con ese nombre.",
           added: "ya agregado",
           count: (n: number) => (n === 1 ? "1 resultado" : `${n} resultados`),
@@ -54,11 +55,11 @@ export function MedSearch({ meds, onAdd, max = 10 }: MedSearchProps) {
           addedMsg: (s: string) => `${s} agregado.`,
         }
       : {
-          label: "Search for a medicine",
-          placeholder: "Name or brand, e.g. metformin or Advil",
+          label: "Drug name",
+          placeholder: "Drug name, e.g. metformin",
           hint: full
             ? `You have ${max} medicines, the maximum.`
-            : "Click to browse the list, or type to filter. Add 1 to 10 medicines.",
+            : "Click to browse the list, or type the drug name. Add 1 to 10 medicines.",
           none: "Nothing found with that name.",
           added: "already added",
           count: (n: number) => (n === 1 ? "1 result" : `${n} results`),
@@ -70,7 +71,7 @@ export function MedSearch({ meds, onAdd, max = 10 }: MedSearchProps) {
   useEffect(() => {
     const query = q.trim();
     abortRef.current?.abort();
-    const local = filterCommon(query);
+    const local = filterGenericOnly(query);
     setResults(local);
     setActive(local.length ? 0 : -1);
     setAnnounce(local.length ? t.count(local.length) : t.none);
@@ -86,7 +87,7 @@ export function MedSearch({ meds, onAdd, max = 10 }: MedSearchProps) {
         const res = await fetch(`/api/meds/search?q=${encodeURIComponent(query)}`, { signal: ctrl.signal });
         if (!res.ok) throw new Error(String(res.status));
         const data = (await res.json()) as { results: Med[] };
-        const merged = mergeLive(local, data.results);
+        const merged = mergeLiveGeneric(local, data.results, query);
         setResults(merged);
         setActive(merged.length ? 0 : -1);
         setAnnounce(merged.length ? t.count(merged.length) : t.none);

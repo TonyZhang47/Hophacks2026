@@ -79,8 +79,8 @@ export function MedsWorkspace() {
             title={es ? "01 / Mis medicamentos" : "01 / My medicines"}
             subtitle={
               es
-                ? "Busque un nombre o escríbalo manualmente."
-                : "Search a name, or enter it yourself."
+                ? "Escriba el nombre del medicamento."
+                : "Type the drug name."
             }
           />
           <div className="space-y-4">

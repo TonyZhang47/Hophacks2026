@@ -184,5 +184,8 @@
   { "name": "Vitamin D3 (cholecalciferol)", "rxcui": "2418", "ingredientName": "cholecalciferol" },
   { "name": "Nicotine (patch / gum)", "rxcui": "7407", "ingredientName": "nicotine" },
   { "name": "Naloxone", "rxcui": "7242", "ingredientName": "naloxone" },
-  { "name": "Narcan (naloxone)", "rxcui": "7242", "ingredientName": "naloxone" }
+  { "name": "Narcan (naloxone)", "rxcui": "7242", "ingredientName": "naloxone" },
+  { "name": "Clindamycin", "rxcui": "2582", "ingredientName": "clindamycin" },
+  { "name": "Cleocin (clindamycin)", "rxcui": "2582", "ingredientName": "clindamycin" },
+  { "name": "Cleocin T (clindamycin)", "rxcui": "2582", "ingredientName": "clindamycin" }
 ]

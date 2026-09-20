@@ -1,10 +1,11 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Camera, Check, Upload } from "lucide-react";
+import { Camera, Check, Image as ImageIcon } from "lucide-react";
 import { CameraCapture } from "@/components/dose/CameraCapture";
 import { downscale } from "@/lib/imageUpload";
 import { Button } from "@/components/ui/Button";
 import { useLang } from "@/components/LanguageContext";
+
 export default function CapturePage() {
   const { lang } = useLang();
   const es = lang === "es";
@@ -13,7 +14,9 @@ export default function CapturePage() {
   const [error, setError] = useState("");
   const [camera, setCamera] = useState(false);
   const [photo, setPhoto] = useState("");
-  const file = useRef<HTMLInputElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const cameraRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     const key = location.hash.slice(1);
     if (!/^[a-f0-9]{48}$/.test(key)) {
@@ -33,6 +36,7 @@ export default function CapturePage() {
         setState("invalid");
       });
   }, []);
+
   async function choose(f?: File) {
     if (!f) return;
     setError("");
@@ -46,6 +50,13 @@ export default function CapturePage() {
       );
     }
   }
+
+  function onPick(input: HTMLInputElement) {
+    const file = input.files?.[0];
+    input.value = "";
+    void choose(file);
+  }
+
   async function send() {
     setState("sending");
     setError("");
@@ -67,6 +78,9 @@ export default function CapturePage() {
       setState("ready");
     }
   }
+
+  const busy = state === "sending";
+
   return (
     <div className="max-w-lg mx-auto py-12 space-y-6">
       <p className="eyebrow">
@@ -106,51 +120,53 @@ export default function CapturePage() {
                 />
               )}
               <div className="flex gap-3 flex-wrap">
-                <Button
-                  variant="outlined"
-                  disabled={state === "sending"}
-                  onClick={() => setCamera(true)}
-                >
+                <Button variant="outlined" disabled={busy} onClick={() => setCamera(true)}>
                   <Camera size={18} />
-                  {es ? "Vista de cámara" : "Live camera"}
+                  {es ? "Cámara en vivo" : "Live camera"}
                 </Button>
-                <Button
-                  disabled={state === "sending"}
-                  onClick={() => file.current?.click()}
-                >
-                  <Upload size={18} />
-                  {es ? "Tomar o elegir foto" : "Take or choose photo"}
+                <Button variant="outlined" disabled={busy} onClick={() => cameraRef.current?.click()}>
+                  <Camera size={18} />
+                  {es ? "Tomar foto" : "Take photo"}
+                </Button>
+                <Button disabled={busy} onClick={() => fileRef.current?.click()}>
+                  <ImageIcon size={18} />
+                  {es ? "Elegir una foto" : "Choose a photo"}
                 </Button>
                 <input
-                  ref={file}
+                  ref={cameraRef}
                   type="file"
                   accept="image/*"
                   capture="environment"
-                  hidden
-                  onChange={(e) => {
-                    void choose(e.target.files?.[0]);
-                    e.target.value = "";
-                  }}
+                  className="sr-only"
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  onChange={(e) => onPick(e.currentTarget)}
+                />
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/*"
+                  className="sr-only"
+                  tabIndex={-1}
+                  aria-hidden="true"
+                  onChange={(e) => onPick(e.currentTarget)}
                 />
               </div>
               <p className="text-meta text-md-on-surface-variant">
                 {es
-                  ? "Si la cámara en vivo no abre, use Tomar o elegir foto."
-                  : "If live camera is unavailable on this connection, use Take or choose photo."}
+                  ? "Si la cámara en vivo no abre, tome una foto o elija una de la galería."
+                  : "If live camera is unavailable on this connection, take a photo or choose one from your library."}
               </p>
               {photo && (
                 <div className="space-y-4">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     alt="Bottle photo ready to send"
                     src={photo}
                     className="w-full max-h-96 object-contain rounded-xl border"
                   />
-                  <Button
-                    className="w-full"
-                    disabled={state === "sending"}
-                    onClick={send}
-                  >
-                    {state === "sending"
+                  <Button className="w-full" disabled={busy} onClick={send}>
+                    {busy
                       ? es
                         ? "Enviando…"
                         : "Sending…"

@@ -170,5 +170,9 @@ export async function searchMeds(q: string): Promise<Med[]> {
     merged.push(getCommonByRxcui(m.rxcui) ?? m);
     if (merged.length >= MAX_RESULTS) break;
   }
+  if (!merged.length) {
+    const first = query.split(" ").find((w) => w.length >= 4);
+    if (first && first !== query) return searchMeds(first);
+  }
   return merged;
 }

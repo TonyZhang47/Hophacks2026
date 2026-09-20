@@ -201,7 +201,7 @@ function parseDrugName(text: string): string {
     if (name.length >= 3) break;
   }
   // Drop trailing salt/form words that are not part of a search name.
-  while (name.length && /^(?:hydrochloride|hcl|sodium|tablet|tablets|capsule|capsules|er|xr|sr)$/i.test(name[name.length - 1])) name.pop();
+  while (name.length && /^(?:hydrochloride|hcl|sodium|phosphate|ph|besylate|mesylate|tablet|tablets|capsule|capsules|er|xr|sr)$/i.test(name[name.length - 1])) name.pop();
   return name.join(" ").toLowerCase();
 }
 
