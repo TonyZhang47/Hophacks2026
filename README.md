@@ -5,6 +5,8 @@ Abigail Wang · Crystal Yang · Hung-Yu Chen · Tony Zhang
 
 RxPlain turns dense medication labels into plain words people can read, hear, and share. It is an educational accessibility tool, not medical advice. It never suggests a dose.
 
+[![RxPlain demo](https://i.ytimg.com/vi/dUgijHb9JC8/hqdefault.jpg)](https://www.youtube.com/watch?v=dUgijHb9JC8)
+
 ## Why
 
 All of us have parents or grandparents whose English isn't strong. A bottle comes home from the pharmacy and nobody in the house can really read it, so the job of translating falls to the kids, who don't know what the medical words mean either. Many of those families also live far from any clinic they could ask. RxPlain is built for them.
@@ -45,7 +47,6 @@ Without any keys, the medicine list, food guide, dose checking, calendar, clinic
 | `XAI_API_KEY` | Bottle scanning, plain-language rewrites, moderation, translation, summaries, and English speech |
 | `ELEVENLABS_API_KEY` | Spanish speech |
 | `OPENFDA_API_KEY` | Optional. Higher rate limit for label lookups |
-| `SNOWFLAKE_*` | Optional. Switches the data layer from bundled seed data to Snowflake |
 
 Restart the dev server after changing `.env.local`. When a key is missing, the relevant button shows an explicit "unavailable" message rather than failing silently.
 
@@ -54,7 +55,7 @@ Restart the dev server after changing `.env.local`. When a key is missing, the r
 ## How it works
 
 - **Framework.** Next.js (App Router) with TypeScript and Tailwind. All vendor calls go through `/api/*` route handlers; no keys reach the browser.
-- **Data.** `lib/db` is an adapter: Snowflake when configured, otherwise the JSON seeds in `data/` (clinics, ZIP centroids, dose limits, label sections, posts, medicine list).
+- **Data.** Bundled JSON seeds in `data/` (clinics, ZIP centroids, dose limits, label sections, posts, medicine list).
 - **Dose checking.** `lib/dose/` retrieves the official `dosage_and_administration` and `overdosage` text from openFDA, checks the daily total against `data/dose_limits.json`, asks Grok to restate the directions using only that text (a template does this without a key), then runs guardrails: schema, no-advice filter, and numeric grounding. Any failure fails closed.
 - **Food guide.** `lib/food.ts`, entries sourced from MedlinePlus and the FDA.
 - **Voice.** `lib/tts/` routes English to Grok Voice and Spanish to ElevenLabs.
@@ -66,7 +67,6 @@ Restart the dev server after changing `.env.local`. When a key is missing, the r
 
 ```bash
 npm run typecheck                                  # tsc
-npm run seed:snowflake                             # load data/ into Snowflake (after sql/schema.sql)
 npx tsx --tsconfig tsconfig.json scripts/dose-smoke.ts    # dose guardrail checks
 npx tsx --tsconfig tsconfig.json scripts/food-smoke.ts    # food guide matching
 npx tsx scripts/build-clinics.ts                   # rebuild data/clinics.json from HRSA + CMS downloads
@@ -75,7 +75,7 @@ npx tsx scripts/build-zips.ts                      # rebuild data/zip_centroids.
 
 ## Deploy
 
-`.do/app.yaml` describes the DigitalOcean App Platform service (port 8080, health check at `/api/health`). Add the keys above as encrypted environment variables.
+Production start is `npm start` on port 8080. Health check is `/api/health`. Optional keys go in the host’s environment variables.
 
 ## Data and safety
 
