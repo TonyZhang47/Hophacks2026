@@ -304,22 +304,34 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
   const [showOriginal, setShowOriginal] = useState<Set<string>>(() => new Set());
   const ids = useId();
   const requestVersion = useRef(0);
+  const lastMedKey = useRef("");
 
   const load = useCallback(async () => {
     const version = ++requestVersion.current;
-    setTerms([]);
-    setOfficial(null);
-    setOfficialFull(null);
-    setOfficialHasMore(false);
-    setLabelExpanded(false);
-    setSummary(null);
-    setSummarizing(false);
-    setSummaryError("");
-    setPosts([]);
     setLoadError("");
     if (!selectedMed) {
+      lastMedKey.current = "";
+      setTerms([]);
+      setOfficial(null);
+      setOfficialFull(null);
+      setOfficialHasMore(false);
+      setLabelExpanded(false);
+      setSummary(null);
+      setPosts([]);
       setLoading(false);
       return;
+    }
+    const medKey = `${selectedMed.rxcui}:${selectedMed.ingredientName || selectedMed.name}`;
+    if (medKey !== lastMedKey.current) {
+      lastMedKey.current = medKey;
+      setPosts([]);
+      setTerms([]);
+      setOfficial(null);
+      setOfficialFull(null);
+      setOfficialHasMore(false);
+      setLabelExpanded(false);
+      setSummary(null);
+      setSummaryError("");
     }
     setLoading(true);
     const rx =
@@ -342,8 +354,8 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
     tp.set("limit", "5");
     try {
       const [tRes, pRes] = await Promise.all([
-        fetch(`/api/community/terms?${tp}`),
-        fetch(`/api/community/posts?${pp}`),
+        fetch(`/api/community/terms?${tp}`, { cache: "no-store" }),
+        fetch(`/api/community/posts?${pp}`, { cache: "no-store" }),
       ]);
       if (!tRes.ok || !pRes.ok) throw new Error("load");
       const termsJson = (await tRes.json()) as {
@@ -355,44 +367,64 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
       const p = (await pRes.json()) as { posts: CommunityPost[] };
       if (version !== requestVersion.current) return;
       setTerms((termsJson.terms ?? []).slice(0, 5));
+      setPosts((cur) => {
+        const incoming = p.posts;
+        const seen = new Set(incoming.map((x) => x.post_id));
+        const extra = cur.filter((x) => !seen.has(x.post_id));
+        return [...extra, ...incoming].sort((a, b) =>
+          b.created_at.localeCompare(a.created_at),
+        );
+      });
       const preview =
         typeof termsJson.official === "string" && termsJson.official.trim()
           ? termsJson.official.trim()
           : null;
-      let full =
+      const full =
         typeof termsJson.officialFull === "string" && termsJson.officialFull.trim()
           ? termsJson.officialFull.trim()
           : null;
-      let hasMore =
+      const hasMore =
         !!termsJson.officialHasMore && !!preview && !!(full && full.length > preview.length);
+      setOfficial(preview);
+      setOfficialFull(full);
+      setOfficialHasMore(hasMore || !!termsJson.officialHasMore);
+      setLoading(false);
       if (termsJson.officialHasMore && preview && !full) {
         const extra = new URLSearchParams(tp);
         extra.set("full", "1");
-        const fRes = await fetch(`/api/community/terms?${extra}`);
-        if (fRes.ok) {
-          const more = (await fRes.json()) as { official?: string | null; officialFull?: string | null };
-          const got =
-            (typeof more.officialFull === "string" && more.officialFull.trim()) ||
-            (typeof more.official === "string" && more.official.trim()) ||
-            "";
-          if (got && version === requestVersion.current) {
-            full = got;
-            hasMore = got.length > preview.length;
-          }
+        const fRes = await fetch(`/api/community/terms?${extra}`, { cache: "no-store" });
+        if (!fRes.ok || version !== requestVersion.current) return;
+        const more = (await fRes.json()) as { official?: string | null; officialFull?: string | null };
+        const got =
+          (typeof more.officialFull === "string" && more.officialFull.trim()) ||
+          (typeof more.official === "string" && more.official.trim()) ||
+          "";
+        if (got && version === requestVersion.current) {
+          setOfficialFull(got);
+          setOfficialHasMore(got.length > preview.length);
         }
       }
-      if (version !== requestVersion.current) return;
-      setOfficial(preview);
-      setOfficialFull(full);
-      setOfficialHasMore(hasMore || !!(full && preview && full.length > preview.length));
-      setPosts(p.posts);
     } catch {
       if (version !== requestVersion.current) return;
       setLoadError(t.loadError);
+      setLoading(false);
     } finally {
       if (version === requestVersion.current) setLoading(false);
     }
   }, [selectedMed, term, t.loadError]);
+
+  const onPosted = (post?: CommunityPost) => {
+    if (post) {
+      const matchesTerm =
+        !term ||
+        post.body.toLowerCase().includes(term.toLowerCase()) ||
+        post.side_effect_tags.includes(term as SideEffectTag);
+      if (matchesTerm) {
+        setPosts((cur) => [post, ...cur.filter((p) => p.post_id !== post.post_id)]);
+      }
+    }
+    void load();
+  };
 
   useEffect(() => {
     void load();
@@ -624,7 +656,7 @@ export function MedicationTalk({ className = "" }: { className?: string }) {
       </Panel>
 
       <Panel>
-        <PostForm handle={handle} selectedMed={selectedMed} onPosted={load} lang={lang} />
+        <PostForm handle={handle} selectedMed={selectedMed} onPosted={onPosted} lang={lang} />
         <p className="text-meta text-md-on-surface-variant mt-4">
           {t.ifWorries}{" "}
           <a
@@ -791,7 +823,7 @@ function PostForm({
 }: {
   handle: string;
   selectedMed: Med | null;
-  onPosted: () => void;
+  onPosted: (post?: CommunityPost) => void;
   lang: Lang;
 }) {
   const t = T[lang];
@@ -831,7 +863,10 @@ function PostForm({
           anonHandle: handle,
         }),
       });
-      const data = (await res.json().catch(() => ({}))) as { error?: string };
+      const data = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        post?: CommunityPost;
+      };
       if (!res.ok) {
         // 422 carries the moderation reason as a plain sentence; shown inline under the text area.
         setErr(data.error ?? t.postFail);
@@ -841,7 +876,7 @@ function PostForm({
       setBody("");
       setTags([]);
       setState("sent");
-      onPosted();
+      onPosted(data.post);
     } catch {
       setErr(t.postNet);
       setState("idle");
